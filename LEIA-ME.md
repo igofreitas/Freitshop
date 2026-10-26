@@ -1,3 +1,7 @@
+> Contador atualizado: consulte CONTADOR-PERSISTENTE.md para sincronização entre dispositivos e preservação do histórico em atualizações.
+
+> Atualização: consulte CORRECOES.md. O contador agora usa um cookie por navegador/dia; a ativação e a chave do feedback são automáticas em instalações novas. As instruções antigas por IP ou de configuração manual obrigatória abaixo foram substituídas.
+
 # FreitShop — busca e comparação de ofertas
 
 Versão adaptada do HTML enviado. Mantém a identidade visual escura, roxa e vermelha, substituindo o catálogo fictício por consulta ao Google Shopping via SerpApi.
@@ -25,7 +29,7 @@ python3 server.py
 
 5. Acesse http://127.0.0.1:8000 no navegador. Não abra o HTML por duplo clique.
 
-Não precisa instalar bibliotecas Python. A interface usa Tailwind e Font Awesome por CDN, por isso precisa de internet. A chave fica apenas no ambiente do servidor; nunca coloque a chave no HTML ou no JavaScript.
+Instale as dependências com `python -m pip install -r requirements.txt` para usar a criptografia do feedback. A interface usa Tailwind e Font Awesome por CDN, por isso precisa de internet. A chave fica apenas no ambiente do servidor; nunca coloque a chave no HTML ou no JavaScript.
 
 ## Uso
 
@@ -64,3 +68,7 @@ Leia CONTADOR-E-ADSENSE.md antes de atualizar o site. Inclui persistência do co
 ## Compare o Black Friday
 
 Leia BLACK-FRIDAY.md. A atualização requer o novo price_history.py além de index.html, app.js e server.py. O histórico começa nas consultas após instalar, sem preços anteriores inventados.
+
+## Feedback e visitas
+
+A versão atual permite avaliações sem login e conta uma visita por IP por dia. Leia FEEDBACK-E-SEGURANCA.md e VISITAS-UNICAS.md. Não é necessário Firebase. Mantenha as chaves de criptografia e o armazenamento persistente.

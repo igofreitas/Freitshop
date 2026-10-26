@@ -1,2 +1,1 @@
-Flask
-google-search-results
+cryptography>=50.0.2,<51

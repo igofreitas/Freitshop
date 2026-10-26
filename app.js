@@ -6,27 +6,25 @@ const safeUrl = s => { try { const u=new URL(s); return ['http:','https:'].inclu
 let offers=[], chosen=new Set(), controller, sequence=0, focusBefore;
 let blackFridayOpen=false, bfSelected=null, historySequence=0, historyController;
 function filterProducts(){
- const store=$('storeFilter').value, max=Number($('priceRange').value);
- let visible=offers.filter(p=>(!store || p.store===store) && p.price<=max);
+ let visible=[...offers];
  const sort=$('sortSelect').value;
  if(sort==='price-asc') visible.sort((a,b)=>a.price-b.price);
  if(sort==='price-desc') visible.sort((a,b)=>b.price-a.price);
  if(sort==='rating') visible.sort((a,b)=>(b.rating ?? -1)-(a.rating ?? -1));
  $('productCount').textContent=visible.length;
  $('compareCount').textContent=chosen.size;
- $('priceLabel').textContent=money(max);
  const min=visible.length ? Math.min(...visible.map(p=>p.price)) : 0;
  $('productGrid').innerHTML=visible.map(p=>`<article class="bg-dark-card border border-purple-900/40 rounded-2xl overflow-hidden flex flex-col">
  <div class="h-44 bg-white p-4 flex items-center justify-center">${safeUrl(p.image)?`<img src="${esc(safeUrl(p.image))}" alt="${esc(p.name)}" loading="lazy" referrerpolicy="no-referrer" class="h-full w-full object-contain">`:'<span class="text-gray-500">Sem imagem</span>'}</div>
  <div class="p-4 flex flex-col flex-1 gap-3"><p class="text-xs text-purple-300">${esc(p.store)}</p><h2 class="font-bold text-sm">${esc(p.name)}</h2>
  <p class="text-2xl font-extrabold text-red-400">${money(p.price)}</p>
- ${p.price===min?'<p class="text-xs text-green-400">Menor preço dos resultados filtrados</p>':''}
+ ${p.price===min?'<p class="text-xs text-green-400">Menor preço dos resultados</p>':''}
  <p class="text-xs text-gray-400">${esc(p.delivery || 'Frete não informado — confira na oferta')}</p>
  <p class="text-xs text-gray-400">Estado: ${esc(p.condition || 'não informado')} • Avaliação: ${p.rating==null?'não informada':esc(p.rating)}</p>
  <a class="mt-auto bg-purple-700 hover:bg-purple-600 p-3 rounded-xl text-center text-sm" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener noreferrer">Ver oferta ↗</a>
  <label class="text-sm cursor-pointer"><input type="checkbox" data-compare="${esc(p.id)}" ${chosen.has(p.id)?'checked':''} class="accent-red-500"> Comparar esta oferta</label></div></article>`).join('');
  renderBlackFridayOffers(visible);
- if(!visible.length) $('productGrid').innerHTML='<p class="col-span-full text-gray-400 p-6">Nenhuma oferta para exibir. Faça uma busca ou ajuste os filtros.</p>';
+ if(!visible.length) $('productGrid').innerHTML='<p class="col-span-full text-gray-400 p-6">Nenhuma oferta para exibir. Faça uma busca.</p>';
 }
 async function searchOnline(){
  const q=$('searchInput').value.trim();
@@ -42,16 +40,12 @@ async function searchOnline(){
   if(!response.ok) throw Error(data.error || 'Não foi possível consultar as ofertas.');
   if(serial!==sequence)return;
   offers=data.offers.map(p=>({...p,fetchedAt:data.fetchedAt,historySaved:data.historySaved}));
-  $('storeFilter').innerHTML='<option value="">Todas as lojas</option>'+[...new Set(offers.map(p=>p.store))].sort().map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
-  const ceiling=Math.max(10000,...offers.map(p=>Math.ceil(p.price/100)*100));
-  $('priceRange').max=ceiling; $('priceRange').value=ceiling;
   $('status').textContent=offers.length ? `Consulta concluída: ${offers.length} ofertas. Os resultados podem incluir modelos e variantes diferentes.` : 'Nenhuma oferta com preço em reais encontrada. Tente informar marca e modelo.';
   $('updated').textContent='Consulta ao provedor: '+new Date(data.fetchedAt).toLocaleString('pt-BR')+(data.cached?' • Cache de até 5 minutos.':'');
   filterProducts();
  }catch(e){if(serial===sequence)$('status').textContent=e.name==='AbortError'?'Consulta interrompida ou tempo limite excedido. Tente novamente.':e.message;}
  finally {clearTimeout(timer); if(serial===sequence)$('productGrid').removeAttribute('aria-busy');}
 }
-function resetFilters(){ $('storeFilter').value=''; $('priceRange').value=$('priceRange').max; $('sortSelect').value='relevance'; filterProducts(); }
 function openComparisonModal(){
  const selected=offers.filter(p=>chosen.has(p.id));
  if(!selected.length){$('status').textContent='Selecione de 2 a 4 ofertas para comparar.'; return;}
@@ -63,8 +57,7 @@ function openComparisonModal(){
 }
 function closeComparisonModal(){ $('comparisonModal').classList.remove('flex'); $('comparisonModal').classList.add('hidden'); focusBefore?.focus(); }
 $('searchInput').addEventListener('keydown',e=>{if(e.key==='Enter')searchOnline();});
-['storeFilter','sortSelect'].forEach(id=>$(id).addEventListener('change',filterProducts));
-$('priceRange').addEventListener('input',filterProducts);
+$('sortSelect').addEventListener('change',filterProducts);
 $('productGrid').addEventListener('change',e=>{const id=e.target.dataset.compare;if(!id)return;if(e.target.checked){if(chosen.size===4){e.target.checked=false;$('status').textContent='Compare até 4 ofertas por vez.';return;}chosen.add(id);}else chosen.delete(id);$('compareCount').textContent=chosen.size;});
 $('comparisonModal').addEventListener('click',e=>{if(e.target===$('comparisonModal'))closeComparisonModal();});
 document.addEventListener('keydown',e=>{
@@ -73,14 +66,6 @@ document.addEventListener('keydown',e=>{
  if(e.key==='Tab'){const nodes=$('comparisonModal').querySelectorAll('button,a[href]');const first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
 });
 
-// Estatística pública agregada; ler esta rota não aumenta a contagem.
-async function loadAccessCounter(){
- try{
-  const r=await fetch('/api/stats'); if(!r.ok)throw Error();
-  const n=await r.json();
-  $('accessCounter').textContent=`Visualizações: ${Number(n.total).toLocaleString('pt-BR')} no total • ${Number(n.today).toLocaleString('pt-BR')} hoje`;
- }catch{$('accessCounter').textContent='Contador temporariamente indisponível.';}
-}
 async function setupAdvertising(){
  try{
   const r=await fetch('/api/site-config'); if(!r.ok)return;
@@ -103,11 +88,10 @@ async function setupAdvertising(){
   document.head.appendChild(script);
  }catch{ /* Falha de anúncio não interfere na comparação de preços. */ }
 }
-loadAccessCounter();
 setupAdvertising();
 
 function renderBlackFridayOffers(items){
- $('bfOffers').innerHTML=items.length ? items.map(p=>`<button type="button" class="bf-choice" data-history-id="${esc(p.historyId)}" aria-pressed="${bfSelected?.historyId===p.historyId}"><span class="block font-semibold">${esc(p.name)}</span><span class="block text-sm text-purple-300 mt-2">${esc(p.store)}</span><span class="block text-lg text-lime-300 font-bold mt-2">${money(p.price)}</span><span class="block text-xs text-gray-400 mt-2">Selecionar e ver histórico →</span></button>`).join('') : '<p class="text-gray-400 p-4 col-span-full">Busque um produto para listar ofertas e lojas. Se já buscou, ajuste os filtros.</p>';
+ $('bfOffers').innerHTML=items.length ? items.map(p=>`<button type="button" class="bf-choice" data-history-id="${esc(p.historyId)}" aria-pressed="${bfSelected?.historyId===p.historyId}"><span class="block font-semibold">${esc(p.name)}</span><span class="block text-sm text-purple-300 mt-2">${esc(p.store)}</span><span class="block text-lg text-lime-300 font-bold mt-2">${money(p.price)}</span><span class="block text-xs text-gray-400 mt-2">Selecionar e ver histórico →</span></button>`).join('') : '<p class="text-gray-400 p-4 col-span-full">Busque um produto para listar ofertas e lojas.</p>';
  if(bfSelected && !items.some(p=>p.historyId===bfSelected.historyId)){
   bfSelected=null;historySequence++;historyController?.abort();$('bfDetail').hidden=true;
  }
@@ -135,9 +119,9 @@ function drawPriceHistory(data){
  const points=data.points;
  $('bfTableDetails').hidden=!points.length;
  $('bfTable').innerHTML='<table class="w-full text-sm text-left"><thead><tr><th class="p-2">Data (UTC−3)</th><th class="p-2">Preço anunciado</th></tr></thead><tbody>'+points.map(p=>`<tr class="border-t border-purple-900/40"><td class="p-2">${esc(dateLabel(p.date))}</td><td class="p-2">${money(p.price)}</td></tr>`).join('')+'</tbody></table>';
- if(!points.length){$('bfHistoryStatus').textContent='Nenhum preço registrado neste período. O histórico começou em '+dateLabel(data.firstRecorded)+'.';return;}
+ if(!points.length){$('bfHistoryStatus').textContent='Nenhum preço registrado neste período. O primeiro registro disponível é de '+dateLabel(data.firstRecorded)+'.';return;}
  const warning=bfSelected?.historySaved===false?' A consulta atual não pôde ser salva no histórico.':'';
- $('bfHistoryStatus').textContent=points.length===1 ? 'Há apenas 1 dia registrado. O gráfico ganhará novos pontos conforme houver consultas em outros dias.'+warning : `${points.length} dias com registros no período. Coleta iniciada em ${dateLabel(data.firstRecorded)}. As linhas apenas conectam observações; não representam preços nos dias sem dados.`+warning;
+ $('bfHistoryStatus').textContent=points.length===1 ? 'Há apenas 1 dia registrado. O gráfico ganhará novos pontos conforme houver consultas em outros dias.'+warning : `${points.length} dias com registros no período. Primeiro registro disponível: ${dateLabel(data.firstRecorded)}. As linhas apenas conectam observações; não representam preços nos dias sem dados.`+warning;
  const values=points.map(p=>p.price),min=Math.min(...values),max=Math.max(...values);
  $('bfSummary').textContent='Menor preço registrado no período: '+money(min)+' • Maior: '+money(max);
  const start=Date.parse(data.start+'T00:00:00Z'),end=Date.parse(data.end+'T00:00:00Z');
@@ -170,3 +154,9 @@ $('blackFridayButton').addEventListener('click',toggleBlackFriday);
 $('bfOffers').addEventListener('click',e=>{const button=e.target.closest('[data-history-id]');if(button)selectBlackFridayOffer(button.dataset.historyId);});
 $('bfMonths').addEventListener('change',loadPriceHistory);
 filterProducts();
+
+
+// Formulário público de avaliação, sem dependência de Firebase.
+import('/feedback.js')
+ .then(module=>module.initializeFeedback())
+ .catch(()=>{const message=document.getElementById('feedbackStatus');if(message)message.textContent='Não foi possível carregar o formulário. Atualize a página.';});

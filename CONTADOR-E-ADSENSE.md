@@ -1,3 +1,5 @@
+> Atualização: consulte CORRECOES.md. O contador agora usa um cookie por navegador/dia; a ativação e a chave do feedback são automáticas em instalações novas. As instruções antigas por IP ou de configuração manual obrigatória abaixo foram substituídas.
+
 # Atualização: contador e preparação para AdSense
 
 ## Instalar no site existente
@@ -8,21 +10,7 @@ Mantenha `SERPAPI_KEY` nas variáveis da hospedagem. Não há chave incluída no
 
 ## Contador
 
-O rodapé exibe o total desde a instalação e o total do dia em UTC−3. Conta requisições GET que servem `/` ou `/index.html`, inclusive recarregamentos e robôs. Não mede pessoas únicas, não filtra tráfego fraudulento e não é uma métrica de impressões do AdSense. Não usa cookies, IPs nem identificadores de visitantes. Serviços de hospedagem e recursos de terceiros podem ter seus próprios registros.
-
-Os números são gravados em SQLite e sobrevivem ao reinício do processo somente se o arquivo for preservado. O banco começa em zero; acessos anteriores não são recuperados.
-
-### Persistência no Render
-
-O plano gratuito perde arquivos locais ao reiniciar/republicar/suspender o serviço. Para este contador durar, configure um serviço com disco persistente e monte, por exemplo, em `/var/data`. Então defina:
-
-```
-STATS_DB_PATH=/var/data/freitshop-access.sqlite3
-```
-
-Não basta definir o caminho: o disco precisa estar criado e montado. Esse recurso pode ter custo. Este projeto usa SQLite em uma instância; não possui integração com Postgres ou sincronização entre várias instâncias. Em hospedagem gratuita sem disco persistente, use outro serviço de estatísticas ou adapte o contador para um banco externo antes de tratá-lo como acumulado permanente.
-
-Faça backup do banco com o servidor parado ou com a API de backup do SQLite. Não envie o banco ao GitHub. `/api/stats` só lê os totais; o arquivo SQLite não é servido pela aplicação.
+O contador no topo registra cada IP uma vez por dia. Recarregamentos não aumentam o total diário. Leia VISITAS-UNICAS.md para detalhes, migração dos totais anteriores, proteção por HMAC, persistência e configuração do IP original na hospedagem. Use /healthz para monitoramento.
 
 ## Preparar o AdSense
 

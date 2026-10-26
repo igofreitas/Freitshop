@@ -3,3 +3,9 @@ __pycache__/
 data/
 *.sqlite3
 *.db
+
+.feedback-secrets.json
+*service-account*.json
+*-firebase-adminsdk-*.json
+
+*.key

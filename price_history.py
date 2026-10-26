@@ -4,11 +4,48 @@ import hashlib
 import json
 import os
 import sqlite3
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 LOCAL_TZ = timezone(timedelta(hours=-3))
+RETENTION_MONTHS = 4
+
+def months_before(day, months):
+    count = day.year*12 + day.month-1-months
+    year, month0 = divmod(count,12)
+    return day.replace(year=year,month=month0+1,day=min(day.day,calendar.monthrange(year,month0+1)[1]))
+
+def prune(db, today):
+    cutoff = months_before(today, RETENTION_MONTHS).isoformat()
+    deleted = db.execute('DELETE FROM price_observations WHERE day < ?', (cutoff,)).rowcount
+    db.execute('DELETE FROM price_offers WHERE NOT EXISTS (SELECT 1 FROM price_observations WHERE offer_id=price_offers.id)')
+    return deleted
+
+def cleanup(now=None):
+    today = (now or datetime.now(LOCAL_TZ)).astimezone(LOCAL_TZ).date()
+    db = connection()
+    try:
+        with db: return prune(db, today)
+    finally: db.close()
+
+def start_daily_cleanup():
+    # Limpa ao iniciar e após cada virada de dia em UTC−3.
+    # Se o servidor estiver suspenso, a próxima inicialização/consulta limpa atrasados.
+    stop = threading.Event()
+    def worker():
+        while not stop.is_set():
+            try: cleanup()
+            except (sqlite3.Error, OSError):
+                if stop.wait(60): return
+                continue
+            now = datetime.now(LOCAL_TZ)
+            midnight = (now + timedelta(days=1)).replace(hour=0,minute=0,second=0,microsecond=0)
+            stop.wait(max(1, (midnight-now).total_seconds()))
+    threading.Thread(target=worker, daemon=True, name='price-retention').start()
+    return stop
+
 
 def offer_key(offer):
     # Não mistura modelos, condições, vendedores ou links distintos por similaridade.
@@ -40,11 +77,11 @@ def record(offers, fetched_at):
 
 def get_history(identity, months, now=None):
     today = (now or datetime.now(LOCAL_TZ)).astimezone(LOCAL_TZ).date()
-    count = today.year*12 + today.month-1-months
-    year, month0 = divmod(count,12)
-    start = today.replace(year=year,month=month0+1,day=min(today.day,calendar.monthrange(year,month0+1)[1]))
+    if months not in (1,2,3,4): raise ValueError('Período máximo: 4 meses.')
+    start = months_before(today, months)
     db = connection()
     try:
+        with db: prune(db, today)
         row = db.execute('SELECT name,store,url FROM price_offers WHERE id=?',(identity,)).fetchone()
         if row is None: return None
         points = db.execute('SELECT day,price,observed_at FROM price_observations WHERE offer_id=? AND day>=? AND day<=? ORDER BY day', (identity,start.isoformat(),today.isoformat())).fetchall()

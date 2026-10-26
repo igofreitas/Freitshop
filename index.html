@@ -34,7 +34,7 @@
 
     <!-- Cabeçalho -->
     <header class="bg-black/80 backdrop-blur-md border-b border-purple-900/50 text-white sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col xl:flex-row items-center justify-between gap-4">
             
             <!-- Logo FreitShop -->
             <div class="flex items-center space-x-3">
@@ -47,7 +47,7 @@
             </div>
             
             <!-- Barra de Pesquisa -->
-            <div class="relative w-full md:w-1/2">
+            <div class="relative w-full xl:flex-1 xl:min-w-0">
                 <div class="flex items-center bg-dark-input border border-purple-800/60 rounded-xl overflow-hidden focus-within:border-red-500 transition shadow-lg shadow-purple-950/20">
                     <input type="text" id="searchInput" aria-label="Produto ou modelo" maxlength="160" placeholder="Busque por produto ou marca (ex: Samsung, Apple, Dell...)" 
                            class="w-full px-4 py-2.5 bg-transparent text-gray-100 placeholder-gray-400 focus:outline-none text-sm">
@@ -60,41 +60,25 @@
             </div>
 
             <!-- Botões de Ação -->
-            <div class="flex items-center space-x-4">
+            <div class="flex items-center justify-center gap-2 shrink-0 flex-wrap">
                 <button onclick="openComparisonModal()" class="bg-gradient-to-r from-purple-700 to-violet-800 hover:from-purple-600 hover:to-violet-700 border border-purple-500/30 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center space-x-2 transition shadow-lg shadow-purple-900/30">
                     <i class="fa-solid fa-scale-balanced text-red-400"></i>
                     <span>Comparar (<span id="compareCount" class="text-red-400 font-bold">0</span>)</span>
                 </button>
+                <div class="bg-dark-card border border-purple-500/30 rounded-xl px-3 py-2 w-36 text-center" title="Uma visita por navegador por dia. O total soma as contagens diárias.">
+                    <p class="text-xs font-semibold text-purple-300"><i class="fa-solid fa-eye mr-1" aria-hidden="true"></i> Visitas ao site</p>
+                    <p id="accessCounter" role="status" aria-live="polite" class="text-xs text-gray-100 mt-1 tabular-nums">Carregando…</p>
+                    <p id="accessCounterStatus" class="text-xs text-gray-400 mt-1">Sincronizando com o servidor…</p>
+                </div>
             </div>
         </div>
     </header>
 
     <!-- Conteúdo Principal -->
-    <main class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-4 gap-8 flex-1 w-full">
+    <main class="max-w-7xl mx-auto px-4 py-8 flex-1 w-full">
         
-        <!-- Filtros Laterais -->
-        <aside class="bg-dark-card p-6 rounded-2xl border border-purple-900/40 shadow-xl h-fit space-y-6">
-            <h2 class="text-lg font-bold border-b border-purple-900/50 pb-3 flex items-center justify-between text-purple-300">
-                <span class="flex items-center gap-2">
-                    <i class="fa-solid fa-filter text-red-500 text-sm"></i> Filtros
-                </span>
-                <button onclick="resetFilters()" class="text-xs text-red-400 hover:text-red-300 transition">Limpar</button>
-            </h2>
-
-            <div><label for="storeFilter" class="block text-purple-300 mb-3">Loja</label>
-                <select id="storeFilter" class="bg-dark-input w-full rounded-xl p-2"><option value="">Todas as lojas</option></select>
-            </div>
-            <!-- Faixa de Preço -->
-            <div>
-                <h3 class="font-semibold text-xs uppercase tracking-wider text-purple-400 mb-3">Preço Máximo</h3>
-                <div class="text-lg font-extrabold text-red-400 mb-2" id="priceLabel">R$ 10.000</div>
-                <input type="range" id="priceRange" min="100" max="10000" step="100" value="10000" 
-                       class="w-full accent-red-500 bg-purple-950 rounded-lg cursor-pointer h-2">
-            </div>
-        </aside>
-
         <!-- Grade de Produtos -->
-        <section class="md:col-span-3 space-y-6">
+        <section class="w-full space-y-6">
             <button type="button" id="blackFridayButton" aria-expanded="false" aria-controls="blackFridayPanel" class="w-full rounded-2xl border border-lime-400/60 bg-gradient-to-r from-purple-950 to-black px-6 py-5 text-left">
                 <span class="block text-xs tracking-widest text-lime-300 uppercase">Antes de comprar, confira o histórico</span>
                 <span class="block text-2xl font-black text-white mt-1">Compare o Black Friday ↗</span>
@@ -138,17 +122,17 @@
                     <a id="bfOfferLink" target="_blank" rel="noopener noreferrer" class="inline-block bg-purple-700 rounded-xl px-4 py-2 mt-4">Ver oferta ↗</a>
                     <div class="mt-6 flex flex-wrap gap-3 items-center justify-between">
                         <h4 class="font-bold text-purple-300">Histórico de preços registrados</h4>
-                        <label class="text-sm">Período <select id="bfMonths" class="bg-dark-input rounded-lg p-2 ml-2"><option value="1">1 mês</option><option value="3">3 meses</option><option value="6" selected>6 meses</option><option value="12">12 meses</option></select></label>
+                        <label class="text-sm">Período <select id="bfMonths" class="bg-dark-input rounded-lg p-2 ml-2"><option value="1">1 mês</option><option value="2">2 meses</option><option value="3">3 meses</option><option value="4" selected>4 meses</option></select></label>
                     </div>
                     <p id="bfHistoryStatus" role="status" aria-live="polite" class="text-sm text-gray-300 mt-4"></p>
                     <div id="bfChart" class="overflow-x-auto mt-4"></div>
                     <div id="bfSummary" class="text-sm text-lime-300 mt-3"></div>
                     <details id="bfTableDetails" class="mt-4"><summary class="cursor-pointer text-purple-300">Ver datas e valores registrados</summary><div id="bfTable" class="overflow-auto max-h-72 mt-3"></div></details>
-                    <p class="text-xs text-gray-400 mt-4">Último preço observado de cada dia, sem frete. O gráfico não recupera preços anteriores à primeira consulta. Confira o preço final e as condições de pagamento na loja.</p>
+                    <p class="text-xs text-gray-400 mt-4">Último preço observado de cada dia, sem frete. Guardamos apenas os últimos 4 meses. Registros mais antigos são excluídos diariamente. O gráfico não recupera preços anteriores à primeira consulta. Confira o preço final e as condições de pagamento na loja.</p>
                 </section>
             </section>
             <!-- Lista de Cards -->
-            <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- Inserido dinamicamente via JavaScript -->
             </div>
         </section>
@@ -181,10 +165,67 @@
       <div id="adSlot" style="min-height:120px;overflow:hidden"></div>
     </section>
     <footer class="border-t border-purple-900/40 py-6 text-center text-sm text-gray-400 px-4">
-      <p id="accessCounter" aria-live="polite">Visualizações: carregando…</p>
-      <p class="text-xs mt-2">Contagem desde a instalação. Inclui recarregamentos e possíveis robôs; não representa visitantes únicos. Dia em UTC−3.</p>
+      <p class="text-xs mt-2">Cada navegador conta uma vez por dia (UTC−3), mesmo em uma rede compartilhada. Atualizar a página não gera outra visita.</p>
       <a id="privacyLink" hidden class="inline-block text-purple-300 underline mt-3">Privacidade</a>
     </footer>
+
+    <section id="feedbackSection" class="max-w-7xl mx-auto px-4 w-full my-8" aria-labelledby="feedbackHeading" style="scroll-margin-top:180px">
+      <div class="bg-dark-card border border-purple-900/40 rounded-2xl p-6">
+        <h2 id="feedbackHeading" class="text-2xl font-bold text-purple-300">Sua opinião sobre o FreitShop</h2>
+        <p class="text-sm text-gray-300 mt-2">Avalie sem cadastro: escolha de 1 a 5 estrelas e escreva um comentário de até 500 caracteres.</p>
+        <p class="text-xs text-gray-400 mt-2">O comentário e as estrelas serão públicos como “Visitante”. Não inclua telefone, e-mail ou outros dados pessoais no texto.</p>
+        <p id="feedbackStatus" role="status" aria-live="polite" class="text-sm text-purple-200 my-4">Carregando feedback…</p>
+        <form id="feedbackForm" class="border-t border-purple-900/40 pt-5 mt-5">
+          <fieldset id="feedbackEditor"><legend class="sr-only">Escrever avaliação</legend>
+          <fieldset><legend class="text-sm font-bold mb-2">Sua avaliação (obrigatória)</legend><div class="flex flex-wrap gap-3">
+            <label class="cursor-pointer text-amber-300"><input type="radio" name="feedbackRating" value="1" required> 1 ★</label>
+            <label class="cursor-pointer text-amber-300"><input type="radio" name="feedbackRating" value="2"> 2 ★</label>
+            <label class="cursor-pointer text-amber-300"><input type="radio" name="feedbackRating" value="3"> 3 ★</label>
+            <label class="cursor-pointer text-amber-300"><input type="radio" name="feedbackRating" value="4"> 4 ★</label>
+            <label class="cursor-pointer text-amber-300"><input type="radio" name="feedbackRating" value="5"> 5 ★</label>
+          </div></fieldset>
+          <label class="block mt-4 text-sm" for="feedbackComment">Comentário</label>
+          <textarea id="feedbackComment" rows="4" required aria-describedby="feedbackCharacters" class="bg-dark-input border border-purple-800 rounded-xl w-full p-3 mt-2" placeholder="O que funcionou bem? O que podemos melhorar?"></textarea>
+          <p id="feedbackCharacters" class="text-xs text-gray-400 text-right mt-1" aria-live="polite">0/500 caracteres</p>
+          <div class="flex gap-3 flex-wrap mt-3"><button id="feedbackSave" type="submit" class="bg-purple-700 rounded-xl px-5 py-3">Publicar avaliação</button></div>
+          </fieldset>
+        </form>
+        <h3 class="font-semibold text-purple-300 mt-8 mb-3">Avaliações da comunidade</h3>
+        <div id="feedbackList" class="grid gap-3"></div>
+        <button id="feedbackMore" hidden type="button" class="border border-purple-500/40 px-4 py-2 mt-4 rounded-xl">Carregar mais</button>
+      </div>
+    </section>
+    <section id="sponsorsSection" hidden class="max-w-7xl mx-auto px-4 py-6 w-full" aria-labelledby="sponsorsHeading">
+      <h2 id="sponsorsHeading" class="text-xl font-bold text-purple-300 mb-4">Patrocinadores</h2>
+      <div id="sponsorsList" class="flex flex-wrap gap-4"></div>
+    </section>
+    <section class="max-w-7xl mx-auto px-4 py-6 w-full" aria-labelledby="adminHeading">
+      <div class="bg-dark-card border border-purple-900/40 rounded-2xl p-6">
+        <h2 id="adminHeading" class="text-xl font-bold text-purple-300">Administração</h2>
+        <form id="adminLogin" class="mt-4 flex flex-wrap items-end gap-4">
+          <label>Usuário<input id="adminUsername" autocomplete="username" required class="block bg-dark-input rounded-xl p-3 mt-2"></label>
+          <label>Senha<input id="adminPassword" type="password" autocomplete="current-password" required class="block bg-dark-input rounded-xl p-3 mt-2"></label>
+          <button class="bg-purple-700 rounded-xl px-5 py-3">Entrar</button>
+        </form>
+        <p id="adminStatus" role="status" aria-live="polite" class="text-sm mt-4"></p>
+        <div id="adminPanel" hidden class="mt-6">
+          <div class="flex justify-between gap-4"><h3 class="font-bold">Gerenciar patrocinadores</h3><button id="adminLogout" type="button" class="underline">Sair</button></div>
+          <form id="sponsorForm" class="flex flex-wrap gap-4 items-end mt-4">
+            <label>Nome do patrocinador<input id="sponsorName" required maxlength="120" class="block bg-dark-input rounded-xl p-3 mt-2"></label>
+            <label>Link (URL)<input id="sponsorUrl" type="url" required maxlength="2048" placeholder="https://" class="block bg-dark-input rounded-xl p-3 mt-2"></label>
+            <button id="sponsorSave" class="bg-purple-700 rounded-xl px-5 py-3">Adicionar patrocinador</button>
+            <button id="sponsorCancel" type="button" hidden class="underline">Cancelar edição</button>
+          </form>
+          <div id="sponsorManagement" class="space-y-3 mt-5"></div>
+        </div>
+      </div>
+    </section>
+    <div id="creatorCredits" class="border-t border-purple-900/40 px-4 py-6 text-center text-sm text-gray-400">
+      <p>Criador: <strong class="text-gray-200">Igo Almeida Rios de Freitas</strong></p>
+      <a href="https://www.instagram.com/igo.fts/" target="_blank" rel="noopener noreferrer" class="inline-block mt-3 text-purple-300 underline hover:text-purple-200" aria-label="Instagram de Igo Almeida Rios de Freitas (abre em nova aba)">Instagram: @igo.fts</a>
+    </div>
+    <script src="/counter.js" defer></script>
     <script src="/app.js"></script>
+    <script src="/admin.js" defer></script>
 </body>
 </html>

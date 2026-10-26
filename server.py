@@ -1,6 +1,9 @@
-"""FreitShop: servidor local Python 3.10+, sem dependências externas."""
+"""FreitShop: Python 3.10+. Instale requirements.txt para o módulo de feedback."""
 import json, os, time, math, threading, sqlite3, re
 import price_history
+import feedback
+import admin
+import visitor_tracking
 from datetime import timedelta
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,18 +16,9 @@ ROOT = Path(__file__).resolve().parent
 CACHE = {}
 LOCK = threading.Lock()
 
-def stats(increment=False):
-    # Contagem agregada de requisições HTML, sem IP, cookies ou identidade.
-    path = Path(os.environ.get('STATS_DB_PATH', str(ROOT / 'data' / 'access.sqlite3')))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    today = datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
-    with sqlite3.connect(path, timeout=10) as db:
-        db.execute('CREATE TABLE IF NOT EXISTS views (day TEXT PRIMARY KEY, count INTEGER NOT NULL)')
-        if increment:
-            db.execute('INSERT INTO views(day,count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET count=count+1', (today,))
-        total = db.execute('SELECT COALESCE(SUM(count),0) FROM views').fetchone()[0]
-        row = db.execute('SELECT count FROM views WHERE day=?', (today,)).fetchone()
-    return {'total':total, 'today':row[0] if row else 0, 'date':today, 'timezone':'UTC-03:00'}
+def stats(increment=False, visitor_id=None, now=None):
+    if increment and visitor_id is None: raise ValueError('Identificador obrigatório para registrar uma visita.')
+    return visitor_tracking.stats(visitor_id if increment else None, now)
 
 def ad_config():
     client = os.environ.get('ADSENSE_CLIENT', '').strip()
@@ -92,15 +86,94 @@ def search(query):
         return 200, payload
 
 class Handler(BaseHTTPRequestHandler):
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(20)
+
+    def feedback_operation(self, operation):
+        try:
+            self.send_json(200, operation())
+        except feedback.FeedbackError as e:
+            self.send_json(e.status, {'error':str(e)})
+        except (ImportError,sqlite3.Error,OSError,ValueError):
+            self.send_json(503, {'error':'Feedback temporariamente indisponível. Verifique a configuração do serviço.'})
+
+    def admin_operation(self,path):
+        try:
+            feedback.check_origin(self.headers.get('Origin',''),self.headers.get('Host',''))
+            lengths=self.headers.get_all('Content-Length') or []
+            if len(lengths)!=1 or not lengths[0].isdigit() or self.headers.get('Transfer-Encoding') or not 1<=int(lengths[0])<=8192:
+                raise feedback.FeedbackError(400,'Solicitação inválida.')
+            if self.headers.get('Content-Type','').split(';')[0]!='application/json':raise feedback.FeedbackError(415,'Envie JSON.')
+            data=json.loads(self.rfile.read(int(lengths[0])))
+            if not isinstance(data,dict):raise feedback.FeedbackError(400,'Dados inválidos.')
+            if path=='/api/admin/login':
+                client=visitor_tracking.daily_token(visitor_tracking.client_ip(self.client_address[0],self.headers),purpose='admin')
+                result,cookie=admin.login(data,client,self.headers.get('Cookie',''))
+            else:result,cookie=admin.mutate(path,data,admin.session(self.headers.get('Cookie','')),self.headers.get('X-CSRF-Token',''))
+            self.respond(200,json.dumps(result).encode(),'application/json; charset=utf-8',cookie)
+        except feedback.FeedbackError as e:self.send_json(e.status,{'error':str(e)})
+        except (ValueError,sqlite3.Error,OSError):self.send_json(503,{'error':'Não foi possível concluir. Confira os dados e o armazenamento do servidor.'})
+
+    def do_POST(self):
+        path=urlsplit(self.path).path
+        if path in ('/api/admin/login','/api/admin/logout','/api/admin/sponsors','/api/admin/sponsors/delete'):
+            self.admin_operation(path);return
+        if path == '/api/visit':
+            try:
+                identity,cookie=visitor_tracking.browser_identity(self.headers.get('Cookie',''))
+                data=stats(True,visitor_id=identity)
+                self.respond(200,json.dumps(data).encode(),'application/json; charset=utf-8',cookie)
+            except (sqlite3.Error,OSError,ValueError):
+                self.send_json(503,{'error':'Não foi possível registrar a visita. Verifique o armazenamento do servidor.'})
+            return
+        if path != '/api/feedback':
+            self.send_json(404, {'error':'Não encontrado.'});return
+        def mutate():
+            feedback.ready()
+            feedback.check_origin(self.headers.get('Origin',''),self.headers.get('Host',''))
+            if self.headers.get('Content-Type','').split(';')[0].strip()!='application/json':
+                raise feedback.FeedbackError(415,'Envie dados JSON.')
+            sizes=self.headers.get_all('Content-Length') or []
+            if len(sizes)!=1 or not sizes[0].isdigit() or self.headers.get('Transfer-Encoding'):
+                raise feedback.FeedbackError(400,'Tamanho de solicitação inválido.')
+            length=int(sizes[0])
+            if not 1<=length<=8192: raise feedback.FeedbackError(413,'Solicitação muito grande ou vazia.')
+            ip=visitor_tracking.client_ip(self.client_address[0],self.headers)
+            rate_id=visitor_tracking.daily_token(ip,purpose='feedback')
+            try:
+                data=json.loads(self.rfile.read(length).decode('utf-8'))
+            except (ValueError,UnicodeError): raise feedback.FeedbackError(400,'JSON inválido.') from None
+            return feedback.submit_anonymous(data,rate_id)
+        self.feedback_operation(mutate)
+
     def do_GET(self):
         parsed=urlsplit(self.path)
+        if parsed.path=='/api/sponsors':
+            self.feedback_operation(admin.listing);return
+        if parsed.path=='/api/admin/session':
+            def state():
+                current=admin.session(self.headers.get('Cookie',''))
+                return {'authenticated':bool(current),'csrf':current[1] if current else None}
+            self.feedback_operation(state);return
+        if parsed.path == '/api/feedback-config':
+            self.send_json(200,feedback.public_config());return
+        if parsed.path == '/api/feedback':
+            def read_feedback():
+                before=parse_qs(parsed.query).get('before',[None])[0]
+                if before is not None:
+                    if not before.isdigit() or not 1<=int(before)<=9223372036854775807:
+                        raise feedback.FeedbackError(400,'Página inválida.')
+                    before=int(before)
+                return feedback.listing(before)
+            self.feedback_operation(read_feedback);return
         if parsed.path == '/healthz':
             self.send_json(200, {'ok':True}); return
         if parsed.path == '/api/price-history':
             params = parse_qs(parsed.query)
             identity = params.get('offer',[''])[0]
-            months_text = params.get('months',['6'])[0]
-            if not re.fullmatch(r'[0-9a-f]{64}', identity) or months_text not in ('1','3','6','12'):
+            months_text = params.get('months',['4'])[0]
+            if not re.fullmatch(r'[0-9a-f]{64}', identity) or months_text not in ('1','2','3','4'):
                 self.send_json(400, {'error':'Oferta ou período inválido.'}); return
             try:
                 history = price_history.get_history(identity, int(months_text))
@@ -125,7 +198,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(400, {'error':'Digite entre 2 e 160 caracteres.'}); return
             status, data=search(query)
             self.send_json(status,data); return
-        files={'/':('index.html','text/html; charset=utf-8'),'/index.html':('index.html','text/html; charset=utf-8'),'/app.js':('app.js','text/javascript; charset=utf-8')}
+        files={'/counter.js':('counter.js','text/javascript; charset=utf-8'),'/admin.js':('admin.js','text/javascript; charset=utf-8'),'/feedback.js':('feedback.js','text/javascript; charset=utf-8'),'/':('index.html','text/html; charset=utf-8'),'/index.html':('index.html','text/html; charset=utf-8'),'/app.js':('app.js','text/javascript; charset=utf-8')}
         if parsed.path not in files:
             self.send_json(404,{'error':'Não encontrado.'}); return
         filename, mime=files[parsed.path]
@@ -134,16 +207,26 @@ class Handler(BaseHTTPRequestHandler):
             client = ad_config()['client']
             tag = f'<meta name="google-adsense-account" content="{client}">' if client else ''
             content = content.replace(b'<!-- ADSENSE_ACCOUNT -->', tag.encode())
-            try: stats(increment=True)
-            except (sqlite3.Error, OSError): pass  # Uma falha do contador não bloqueia a busca.
+            try:
+                counts=stats()
+                label=f"{counts['total']:,} no total • {counts['today']:,} hoje".replace(',','.')
+                content=content.replace(b'id="accessCounter"',b'id="accessCounter" data-server-value="true"')
+                content=content.replace('>Carregando…</p>'.encode(),('>'+label+'</p>').encode(),1)
+            except (sqlite3.Error,OSError,ValueError):pass
         self.respond(200,content,mime)
-    def respond(self,status,body,mime):
+    def respond(self,status,body,mime,cookie=None):
         self.send_response(status)
         self.send_header('Content-Type',mime)
+        if cookie:self.send_header('Set-Cookie',cookie)
         self.send_header('Content-Length',str(len(body)))
         self.send_header('Cache-Control','no-store')
         self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('Referrer-Policy','no-referrer')
+        self.send_header('X-Frame-Options','DENY')
+        if os.environ.get('PUBLIC_SITE_URL','').startswith('https://'):
+            self.send_header('Strict-Transport-Security','max-age=31536000')
+        self.send_header('Content-Security-Policy',"frame-ancestors 'none'; object-src 'none'; base-uri 'self'")
+        self.send_header('Permissions-Policy','camera=(), microphone=(), geolocation=()')
         self.end_headers()
         try: self.wfile.write(body)
         except (BrokenPipeError,ConnectionResetError): pass
@@ -155,4 +238,8 @@ if __name__=='__main__':
     print('FreitShop: http://127.0.0.1:8000 — Ctrl+C para encerrar')
     port = int(os.environ.get('PORT', '8000'))
     host = os.environ.get('HOST', '0.0.0.0' if os.environ.get('PORT') else '127.0.0.1')
-    ThreadingHTTPServer((host,port),Handler).serve_forever()
+    cleanup_stop = price_history.start_daily_cleanup()
+    try:
+        ThreadingHTTPServer((host,port),Handler).serve_forever()
+    finally:
+        cleanup_stop.set()
