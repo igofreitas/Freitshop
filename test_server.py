@@ -1,10 +1,16 @@
-import io, json, os, unittest
+import io, json, os, unittest, tempfile
 from unittest.mock import patch
 from urllib.error import HTTPError
 import server
 
 class Tests(unittest.TestCase):
-    def setUp(self): server.CACHE.clear()
+    def setUp(self):
+        server.CACHE.clear()
+        self.tmp=tempfile.TemporaryDirectory()
+        self.env=patch.dict(os.environ,{'PRICE_HISTORY_DB_PATH':self.tmp.name+'/history.sqlite3'})
+        self.env.start()
+    def tearDown(self):
+        self.env.stop();self.tmp.cleanup()
     def fixture(self, **overrides):
         return dict(title='Modelo 256GB',source='Loja A',price='R$ 1.250,00',extracted_price=1250,product_link='https://example.com/item',**overrides)
     def test_normalization(self):
@@ -16,7 +22,7 @@ class Tests(unittest.TestCase):
     def test_search_cache_and_locale(self):
         payload=json.dumps({'shopping_results':[self.fixture()]}).encode()
         with patch.dict(os.environ,{'SERPAPI_KEY':'test'}), patch('server.urlopen',return_value=io.BytesIO(payload)) as req:
-            status,data=server.search('Samsung'); self.assertEqual(status,200); self.assertFalse(data['cached'])
+            status,data=server.search('Samsung'); self.assertEqual(status,200); self.assertFalse(data['cached']); self.assertTrue(data['historySaved']); self.assertEqual(len(data['offers'][0]['historyId']),64)
             self.assertTrue(server.search('samsung')[1]['cached']); self.assertEqual(req.call_count,1)
             self.assertIn('gl=br',req.call_args.args[0].full_url)
     def test_provider_failure(self):

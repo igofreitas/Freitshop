@@ -39,7 +39,7 @@ Digite marca e modelo, preferencialmente capacidade e versão, e pressione Enter
 - Valores sem indicação de reais ou sem preço numérico válido são descartados. Não se utiliza o campo de parcelas como preço total.
 - Os links podem abrir a página intermediária do Google Shopping. O botão não garante link direto ao varejista.
 - A data exibida indica a consulta ao provedor, não o instante em que a loja alterou o preço. Consultas iguais usam cache local por até cinco minutos. Apenas a página de resultados retornada pelo provedor é exibida, sem paginação.
-- Histórico inventado e alertas de e-mail simulados foram retirados. Esta versão não envia e-mails e não guarda histórico.
+- Histórico inventado e alertas de e-mail simulados foram retirados. Esta versão não envia e-mails. Agora registra histórico real a partir das consultas: veja BLACK-FRIDAY.md.
 
 ## Arquivos
 
@@ -60,3 +60,7 @@ Documentação da integração: https://serpapi.com/google-shopping-api e https:
 ## Contador e monetização
 
 Leia CONTADOR-E-ADSENSE.md antes de atualizar o site. Inclui persistência do contador, configuração de anúncios e etapas pendentes de aprovação e consentimento.
+
+## Compare o Black Friday
+
+Leia BLACK-FRIDAY.md. A atualização requer o novo price_history.py além de index.html, app.js e server.py. O histórico começa nas consultas após instalar, sem preços anteriores inventados.

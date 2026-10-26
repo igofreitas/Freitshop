@@ -23,6 +23,11 @@
         .border-dark {
             border-color: #2e2e48;
         }
+        [hidden] { display: none !important; }
+        .bf-choice { width:100%; text-align:left; padding:16px; border:1px solid #3b3154; border-radius:12px; background:#16161e; }
+        .bf-choice:hover, .bf-choice[aria-pressed="true"] { border-color:#a3e635; background:#20251a; }
+        .bf-choice:focus-visible { outline:3px solid #a3e635; outline-offset:3px; }
+        #bfChart svg { width:100%; height:auto; min-width:480px; }
     </style>
 </head>
 <body class="font-sans antialiased min-h-screen flex flex-col">
@@ -90,6 +95,10 @@
 
         <!-- Grade de Produtos -->
         <section class="md:col-span-3 space-y-6">
+            <button type="button" id="blackFridayButton" aria-expanded="false" aria-controls="blackFridayPanel" class="w-full rounded-2xl border border-lime-400/60 bg-gradient-to-r from-purple-950 to-black px-6 py-5 text-left">
+                <span class="block text-xs tracking-widest text-lime-300 uppercase">Antes de comprar, confira o histórico</span>
+                <span class="block text-2xl font-black text-white mt-1">Compare o Black Friday ↗</span>
+            </button>
             <!-- Barra de Contagem e Ordenação -->
             <div class="bg-dark-card p-4 rounded-2xl border border-purple-900/40 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
                 <p class="text-sm text-gray-400">
@@ -113,6 +122,31 @@
                 <p id="updated" class="text-xs text-gray-400 mt-2"></p>
                 <p class="text-xs text-gray-400 mt-2">Fonte: Google Shopping via SerpApi. Cobertura parcial das lojas. Preços anunciados, sujeitos a alteração; frete e condições de pagamento devem ser confirmados na oferta.</p>
             </div>
+            <section id="blackFridayPanel" hidden aria-labelledby="bfHeading" class="space-y-5">
+                <div class="bg-dark-card p-5 rounded-2xl border border-purple-900/40">
+                    <h2 id="bfHeading" tabindex="-1" class="text-xl font-bold text-lime-300">Compare o Black Friday</h2>
+                    <p class="text-sm text-gray-300 mt-2">Busque um produto na barra acima e selecione uma oferta para ver seu preço e histórico naquela loja.</p>
+                    <p class="text-xs text-gray-400 mt-2">Esta seção não garante promoções de Black Friday. Os preços são registrados quando há consultas; datas sem registro permanecem sem dados.</p>
+                </div>
+                <div id="bfOffers" class="grid grid-cols-1 sm:grid-cols-2 gap-3" aria-label="Escolha uma oferta"></div>
+                <section id="bfDetail" hidden class="bg-dark-card p-5 rounded-2xl border border-lime-500/30" aria-label="Preço e histórico da oferta">
+                    <h3 id="bfName" class="text-xl font-bold"></h3>
+                    <p id="bfStore" class="text-purple-300 mt-2"></p>
+                    <p class="text-xs text-gray-400 mt-4">PREÇO ATUAL ANUNCIADO NA CONSULTA</p>
+                    <p id="bfPrice" class="text-3xl font-black text-lime-300 mt-1"></p>
+                    <p id="bfFetched" class="text-xs text-gray-400 mt-2"></p>
+                    <a id="bfOfferLink" target="_blank" rel="noopener noreferrer" class="inline-block bg-purple-700 rounded-xl px-4 py-2 mt-4">Ver oferta ↗</a>
+                    <div class="mt-6 flex flex-wrap gap-3 items-center justify-between">
+                        <h4 class="font-bold text-purple-300">Histórico de preços registrados</h4>
+                        <label class="text-sm">Período <select id="bfMonths" class="bg-dark-input rounded-lg p-2 ml-2"><option value="1">1 mês</option><option value="3">3 meses</option><option value="6" selected>6 meses</option><option value="12">12 meses</option></select></label>
+                    </div>
+                    <p id="bfHistoryStatus" role="status" aria-live="polite" class="text-sm text-gray-300 mt-4"></p>
+                    <div id="bfChart" class="overflow-x-auto mt-4"></div>
+                    <div id="bfSummary" class="text-sm text-lime-300 mt-3"></div>
+                    <details id="bfTableDetails" class="mt-4"><summary class="cursor-pointer text-purple-300">Ver datas e valores registrados</summary><div id="bfTable" class="overflow-auto max-h-72 mt-3"></div></details>
+                    <p class="text-xs text-gray-400 mt-4">Último preço observado de cada dia, sem frete. O gráfico não recupera preços anteriores à primeira consulta. Confira o preço final e as condições de pagamento na loja.</p>
+                </section>
+            </section>
             <!-- Lista de Cards -->
             <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Inserido dinamicamente via JavaScript -->

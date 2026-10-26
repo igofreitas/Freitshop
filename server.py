@@ -1,5 +1,6 @@
 """FreitShop: servidor local Python 3.10+, sem dependências externas."""
 import json, os, time, math, threading, sqlite3, re
+import price_history
 from datetime import timedelta
 from datetime import datetime, timezone
 from pathlib import Path
@@ -60,6 +61,7 @@ def normalize(data):
         result.append(dict(id=str(len(result)), name=name, store=store, price=price, url=url,
                            image=safe_url(item.get('thumbnail')), rating=rating,
                            delivery=str(item.get('delivery') or ''), condition=str(item.get('second_hand_condition') or '')))
+    for offer in result: offer['historyId'] = price_history.offer_key(offer)
     return result
 
 def search(query):
@@ -80,6 +82,11 @@ def search(query):
         if not isinstance(data, dict) or data.get('error'):
             return 502, {'error':'O provedor não concluiu a consulta. Confira a chave e a cota da SerpApi.'}
         payload = {'offers':normalize(data), 'fetchedAt':datetime.now(timezone.utc).isoformat(), 'cached':False}
+        try:
+            price_history.record(payload['offers'], payload['fetchedAt'])
+            payload['historySaved'] = True
+        except (sqlite3.Error, OSError):
+            payload['historySaved'] = False
         if len(CACHE)>=100: CACHE.pop(next(iter(CACHE)))
         CACHE[query.casefold()] = (time.monotonic(), payload)
         return 200, payload
@@ -89,6 +96,18 @@ class Handler(BaseHTTPRequestHandler):
         parsed=urlsplit(self.path)
         if parsed.path == '/healthz':
             self.send_json(200, {'ok':True}); return
+        if parsed.path == '/api/price-history':
+            params = parse_qs(parsed.query)
+            identity = params.get('offer',[''])[0]
+            months_text = params.get('months',['6'])[0]
+            if not re.fullmatch(r'[0-9a-f]{64}', identity) or months_text not in ('1','3','6','12'):
+                self.send_json(400, {'error':'Oferta ou período inválido.'}); return
+            try:
+                history = price_history.get_history(identity, int(months_text))
+                if history is None: self.send_json(404, {'error':'Ainda não há registros para esta oferta.'})
+                else: self.send_json(200, history)
+            except (sqlite3.Error, OSError): self.send_json(503, {'error':'Não foi possível ler o histórico. Verifique o armazenamento do servidor.'})
+            return
         if parsed.path == '/api/stats':
             try: self.send_json(200, stats())
             except (sqlite3.Error, OSError): self.send_json(503, {'error':'Contador temporariamente indisponível.'})

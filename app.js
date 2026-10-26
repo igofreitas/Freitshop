@@ -4,6 +4,7 @@ const money = n => n.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeUrl = s => { try { const u=new URL(s); return ['http:','https:'].includes(u.protocol) ? u.href : ''; } catch {return '';} };
 let offers=[], chosen=new Set(), controller, sequence=0, focusBefore;
+let blackFridayOpen=false, bfSelected=null, historySequence=0, historyController;
 function filterProducts(){
  const store=$('storeFilter').value, max=Number($('priceRange').value);
  let visible=offers.filter(p=>(!store || p.store===store) && p.price<=max);
@@ -24,6 +25,7 @@ function filterProducts(){
  <p class="text-xs text-gray-400">Estado: ${esc(p.condition || 'não informado')} • Avaliação: ${p.rating==null?'não informada':esc(p.rating)}</p>
  <a class="mt-auto bg-purple-700 hover:bg-purple-600 p-3 rounded-xl text-center text-sm" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener noreferrer">Ver oferta ↗</a>
  <label class="text-sm cursor-pointer"><input type="checkbox" data-compare="${esc(p.id)}" ${chosen.has(p.id)?'checked':''} class="accent-red-500"> Comparar esta oferta</label></div></article>`).join('');
+ renderBlackFridayOffers(visible);
  if(!visible.length) $('productGrid').innerHTML='<p class="col-span-full text-gray-400 p-6">Nenhuma oferta para exibir. Faça uma busca ou ajuste os filtros.</p>';
 }
 async function searchOnline(){
@@ -39,7 +41,7 @@ async function searchOnline(){
   const data=await response.json();
   if(!response.ok) throw Error(data.error || 'Não foi possível consultar as ofertas.');
   if(serial!==sequence)return;
-  offers=data.offers;
+  offers=data.offers.map(p=>({...p,fetchedAt:data.fetchedAt,historySaved:data.historySaved}));
   $('storeFilter').innerHTML='<option value="">Todas as lojas</option>'+[...new Set(offers.map(p=>p.store))].sort().map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
   const ceiling=Math.max(10000,...offers.map(p=>Math.ceil(p.price/100)*100));
   $('priceRange').max=ceiling; $('priceRange').value=ceiling;
@@ -70,7 +72,6 @@ document.addEventListener('keydown',e=>{
  if(e.key==='Escape')closeComparisonModal();
  if(e.key==='Tab'){const nodes=$('comparisonModal').querySelectorAll('button,a[href]');const first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
 });
-filterProducts();
 
 // Estatística pública agregada; ler esta rota não aumenta a contagem.
 async function loadAccessCounter(){
@@ -104,3 +105,68 @@ async function setupAdvertising(){
 }
 loadAccessCounter();
 setupAdvertising();
+
+function renderBlackFridayOffers(items){
+ $('bfOffers').innerHTML=items.length ? items.map(p=>`<button type="button" class="bf-choice" data-history-id="${esc(p.historyId)}" aria-pressed="${bfSelected?.historyId===p.historyId}"><span class="block font-semibold">${esc(p.name)}</span><span class="block text-sm text-purple-300 mt-2">${esc(p.store)}</span><span class="block text-lg text-lime-300 font-bold mt-2">${money(p.price)}</span><span class="block text-xs text-gray-400 mt-2">Selecionar e ver histórico →</span></button>`).join('') : '<p class="text-gray-400 p-4 col-span-full">Busque um produto para listar ofertas e lojas. Se já buscou, ajuste os filtros.</p>';
+ if(bfSelected && !items.some(p=>p.historyId===bfSelected.historyId)){
+  bfSelected=null;historySequence++;historyController?.abort();$('bfDetail').hidden=true;
+ }
+}
+function toggleBlackFriday(){
+ blackFridayOpen=!blackFridayOpen;
+ $('blackFridayPanel').hidden=!blackFridayOpen;
+ $('productGrid').hidden=blackFridayOpen;
+ $('blackFridayButton').setAttribute('aria-expanded',String(blackFridayOpen));
+ if(blackFridayOpen){$('bfHeading').focus(); if(!offers.length)$('searchInput').focus();}
+}
+function selectBlackFridayOffer(identity){
+ const p=offers.find(o=>o.historyId===identity);if(!p)return;
+ bfSelected=p;
+ document.querySelectorAll('[data-history-id]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.historyId===identity)));
+ $('bfDetail').hidden=false;
+ $('bfName').textContent=p.name;$('bfStore').textContent='Loja: '+p.store;$('bfPrice').textContent=money(p.price);
+ $('bfFetched').textContent='Consultado em '+new Date(p.fetchedAt).toLocaleString('pt-BR')+'. Preço sujeito a alteração.';
+ $('bfOfferLink').href=safeUrl(p.url);
+ loadPriceHistory();
+ $('bfDetail').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+const dateLabel = value => value.split('-').reverse().join('/');
+function drawPriceHistory(data){
+ const points=data.points;
+ $('bfTableDetails').hidden=!points.length;
+ $('bfTable').innerHTML='<table class="w-full text-sm text-left"><thead><tr><th class="p-2">Data (UTC−3)</th><th class="p-2">Preço anunciado</th></tr></thead><tbody>'+points.map(p=>`<tr class="border-t border-purple-900/40"><td class="p-2">${esc(dateLabel(p.date))}</td><td class="p-2">${money(p.price)}</td></tr>`).join('')+'</tbody></table>';
+ if(!points.length){$('bfHistoryStatus').textContent='Nenhum preço registrado neste período. O histórico começou em '+dateLabel(data.firstRecorded)+'.';return;}
+ const warning=bfSelected?.historySaved===false?' A consulta atual não pôde ser salva no histórico.':'';
+ $('bfHistoryStatus').textContent=points.length===1 ? 'Há apenas 1 dia registrado. O gráfico ganhará novos pontos conforme houver consultas em outros dias.'+warning : `${points.length} dias com registros no período. Coleta iniciada em ${dateLabel(data.firstRecorded)}. As linhas apenas conectam observações; não representam preços nos dias sem dados.`+warning;
+ const values=points.map(p=>p.price),min=Math.min(...values),max=Math.max(...values);
+ $('bfSummary').textContent='Menor preço registrado no período: '+money(min)+' • Maior: '+money(max);
+ const start=Date.parse(data.start+'T00:00:00Z'),end=Date.parse(data.end+'T00:00:00Z');
+ const pad=Math.max((max-min)*0.15,max*0.03,1),low=Math.max(0,min-pad),high=max+pad;
+ const x=day=>100+((Date.parse(day+'T00:00:00Z')-start)/(end-start||1))*580;
+ const y=price=>225-((price-low)/(high-low))*185;
+ let svg=`<svg viewBox="0 0 720 290" role="img" aria-label="Histórico de preços da oferta selecionada"><title>Histórico: ${esc(data.name)} em ${esc(data.store)}</title><desc>${points.length} dias registrados, entre ${esc(data.start)} e ${esc(data.end)}. Valores disponíveis na tabela abaixo.</desc><rect width="720" height="290" fill="#111118" rx="12"/>`;
+ for(let i=0;i<4;i++){const v=low+(high-low)*i/3,py=y(v);svg+=`<line x1="100" x2="680" y1="${py}" y2="${py}" stroke="#343044"/><text x="90" y="${py+4}" text-anchor="end" fill="#aaa5ba" font-size="11">${esc(money(v))}</text>`;}
+ [0,0.5,1].forEach((v,i)=>{const day=new Date(start+(end-start)*v).toISOString().slice(0,10);svg+=`<text x="${100+580*v}" y="255" text-anchor="${i===0?'start':i===2?'end':'middle'}" fill="#aaa5ba" font-size="12">${esc(dateLabel(day))}</text>`;});
+ if(points.length>1)svg+=`<polyline points="${points.map(p=>`${x(p.date)},${y(p.price)}`).join(' ')}" fill="none" stroke="#a3e635" stroke-width="2" stroke-dasharray="5 4"/>`;
+ svg+=points.map(p=>`<circle cx="${x(p.date)}" cy="${y(p.price)}" r="4" fill="#a3e635"><title>${esc(dateLabel(p.date))}: ${esc(money(p.price))}</title></circle>`).join('');
+ $('bfChart').innerHTML=svg+'</svg>';
+}
+async function loadPriceHistory(){
+ if(!bfSelected)return;
+ historyController?.abort();historyController=new AbortController();
+ const request=historyController,version=++historySequence,identity=bfSelected.historyId;
+ $('bfChart').innerHTML='';$('bfTable').innerHTML='';$('bfSummary').textContent='';$('bfTableDetails').hidden=true;
+ $('bfHistoryStatus').textContent='Carregando histórico…';
+ const timer=setTimeout(()=>request.abort(),15000);
+ try{
+  const r=await fetch('/api/price-history?offer='+encodeURIComponent(identity)+'&months='+$('bfMonths').value,{signal:request.signal});
+  const data=await r.json();if(version!==historySequence)return;
+  if(!r.ok)throw Error(data.error||'Histórico indisponível.');
+  drawPriceHistory(data);
+ }catch(e){if(version===historySequence)$('bfHistoryStatus').textContent=e.name==='AbortError'?'A consulta ao histórico demorou demais. Troque o período para tentar novamente.':e.message;}
+ finally{clearTimeout(timer);}
+}
+$('blackFridayButton').addEventListener('click',toggleBlackFriday);
+$('bfOffers').addEventListener('click',e=>{const button=e.target.closest('[data-history-id]');if(button)selectBlackFridayOffer(button.dataset.historyId);});
+$('bfMonths').addEventListener('change',loadPriceHistory);
+filterProducts();
