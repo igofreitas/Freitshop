@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <!-- ADSENSE_ACCOUNT -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreitShop - Comparador de Preços</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #0d0d12;
+            color: #e2e8f0;
+        }
+        .bg-dark-card {
+            background-color: #16161e;
+        }
+        .bg-dark-input {
+            background-color: #1f1f2e;
+        }
+        .border-dark {
+            border-color: #2e2e48;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Cabeçalho -->
+    <header class="bg-black/80 backdrop-blur-md border-b border-purple-900/50 text-white sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <!-- Logo FreitShop -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 via-purple-600 to-violet-500 flex items-center justify-between p-2 shadow-lg shadow-purple-900/40">
+                    <i class="fa-solid fa-bolt text-white text-xl mx-auto"></i>
+                </div>
+                <span class="text-2xl font-black tracking-wider bg-gradient-to-r from-purple-400 via-violet-300 to-red-500 bg-clip-text text-transparent">
+                    Freit<span class="text-red-500">Shop</span>
+                </span>
+            </div>
+            
+            <!-- Barra de Pesquisa -->
+            <div class="relative w-full md:w-1/2">
+                <div class="flex items-center bg-dark-input border border-purple-800/60 rounded-xl overflow-hidden focus-within:border-red-500 transition shadow-lg shadow-purple-950/20">
+                    <input type="text" id="searchInput" aria-label="Produto ou modelo" maxlength="160" placeholder="Busque por produto ou marca (ex: Samsung, Apple, Dell...)" 
+                           class="w-full px-4 py-2.5 bg-transparent text-gray-100 placeholder-gray-400 focus:outline-none text-sm">
+                    <button id="searchButton" onclick="searchOnline()" aria-label="Buscar ofertas" class="bg-red-600 hover:bg-red-700 px-5 py-2.5 text-white transition flex items-center justify-center">
+                        <i class="fa-solid fa-search"></i>
+                    </button>
+                </div>
+                <!-- Dropdown de Sugestões -->
+                <div id="searchSuggestions" class="absolute left-0 right-0 bg-dark-card border border-purple-800/60 mt-1 rounded-xl shadow-2xl hidden z-50 max-h-60 overflow-y-auto"></div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="flex items-center space-x-4">
+                <button onclick="openComparisonModal()" class="bg-gradient-to-r from-purple-700 to-violet-800 hover:from-purple-600 hover:to-violet-700 border border-purple-500/30 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center space-x-2 transition shadow-lg shadow-purple-900/30">
+                    <i class="fa-solid fa-scale-balanced text-red-400"></i>
+                    <span>Comparar (<span id="compareCount" class="text-red-400 font-bold">0</span>)</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-4 gap-8 flex-1 w-full">
+        
+        <!-- Filtros Laterais -->
+        <aside class="bg-dark-card p-6 rounded-2xl border border-purple-900/40 shadow-xl h-fit space-y-6">
+            <h2 class="text-lg font-bold border-b border-purple-900/50 pb-3 flex items-center justify-between text-purple-300">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-filter text-red-500 text-sm"></i> Filtros
+                </span>
+                <button onclick="resetFilters()" class="text-xs text-red-400 hover:text-red-300 transition">Limpar</button>
+            </h2>
+
+            <div><label for="storeFilter" class="block text-purple-300 mb-3">Loja</label>
+                <select id="storeFilter" class="bg-dark-input w-full rounded-xl p-2"><option value="">Todas as lojas</option></select>
+            </div>
+            <!-- Faixa de Preço -->
+            <div>
+                <h3 class="font-semibold text-xs uppercase tracking-wider text-purple-400 mb-3">Preço Máximo</h3>
+                <div class="text-lg font-extrabold text-red-400 mb-2" id="priceLabel">R$ 10.000</div>
+                <input type="range" id="priceRange" min="100" max="10000" step="100" value="10000" 
+                       class="w-full accent-red-500 bg-purple-950 rounded-lg cursor-pointer h-2">
+            </div>
+        </aside>
+
+        <!-- Grade de Produtos -->
+        <section class="md:col-span-3 space-y-6">
+            <!-- Barra de Contagem e Ordenação -->
+            <div class="bg-dark-card p-4 rounded-2xl border border-purple-900/40 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
+                <p class="text-sm text-gray-400">
+                    <span id="productCount" class="font-bold text-purple-300">0</span> ofertas encontradas
+                </p>
+                <div class="flex items-center space-x-3 text-sm">
+                    <span class="text-gray-400">Ordenar por:</span>
+                    <select id="sortSelect" class="bg-dark-input border border-purple-800/60 rounded-xl px-3 py-1.5 text-gray-200 focus:outline-none focus:border-red-500">
+                        <option value="relevance">Relevância</option>
+                        <option value="price-asc">Menor Preço</option>
+                        <option value="price-desc">Maior Preço</option>
+                        <option value="rating">Melhor Avaliação</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bg-dark-card p-5 rounded-2xl border border-purple-900/40">
+                <h1 class="text-xl font-bold text-purple-300">Encontre e compare ofertas online</h1>
+                <p class="text-sm text-gray-400 mt-2">Digite o modelo completo para resultados mais precisos. Confira capacidade, cor, estado e vendedor antes de comparar.</p>
+                <p id="status" role="status" aria-live="polite" class="text-sm mt-3">Busque um produto para consultar ofertas.</p>
+                <p id="updated" class="text-xs text-gray-400 mt-2"></p>
+                <p class="text-xs text-gray-400 mt-2">Fonte: Google Shopping via SerpApi. Cobertura parcial das lojas. Preços anunciados, sujeitos a alteração; frete e condições de pagamento devem ser confirmados na oferta.</p>
+            </div>
+            <!-- Lista de Cards -->
+            <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Inserido dinamicamente via JavaScript -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal de Comparação -->
+    <div id="comparisonModal" role="dialog" aria-modal="true" aria-label="Comparação de ofertas" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-dark-card border border-purple-800/60 rounded-2xl max-w-5xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto text-gray-100">
+            <button onclick="closeComparisonModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-400">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <h3 class="text-xl font-bold mb-4 flex items-center space-x-2 text-purple-300">
+                <i class="fa-solid fa-scale-balanced text-red-500"></i>
+                <span>Comparação Lado a Lado</span>
+            </h3>
+            <div id="comparisonContent" class="overflow-x-auto"></div>
+        </div>
+    </div>
+
+    <section class="max-w-7xl mx-auto px-4 w-full my-8" aria-label="Como comparar">
+      <div class="bg-dark-card border border-purple-900/40 p-6 rounded-2xl">
+        <h2 class="text-xl font-bold text-purple-300 mb-3">Como encontrar uma oferta que vale a pena</h2>
+        <p class="text-sm text-gray-300">Compare o mesmo modelo, capacidade, voltagem e estado de conservação. Um anúncio de acessório ou produto recondicionado pode aparecer junto ao produto novo. Leia o título completo e confirme quem vende e quem entrega.</p>
+        <p class="text-sm text-gray-300 mt-3">O preço anunciado não conta toda a história: confira o frete para seu CEP, o prazo, a garantia e as regras de devolução. Verifique se o valor exige Pix, cupom ou assinatura. Ao parcelar, compare a soma de todas as parcelas com o preço à vista.</p>
+        <p class="text-sm text-gray-300 mt-3">O FreitShop organiza ofertas de uma fonte externa e não vende produtos. A cobertura é parcial, e preços podem mudar. A confirmação final acontece na página do vendedor.</p>
+      </div>
+    </section>
+    <section id="adContainer" hidden class="max-w-7xl mx-auto px-4 w-full mb-8" aria-label="Publicidade">
+      <p class="text-xs text-gray-400 text-center mb-2">Publicidade</p>
+      <div id="adSlot" style="min-height:120px;overflow:hidden"></div>
+    </section>
+    <footer class="border-t border-purple-900/40 py-6 text-center text-sm text-gray-400 px-4">
+      <p id="accessCounter" aria-live="polite">Visualizações: carregando…</p>
+      <p class="text-xs mt-2">Contagem desde a instalação. Inclui recarregamentos e possíveis robôs; não representa visitantes únicos. Dia em UTC−3.</p>
+      <a id="privacyLink" hidden class="inline-block text-purple-300 underline mt-3">Privacidade</a>
+    </footer>
+    <script src="/app.js"></script>
+</body>
+</html>
