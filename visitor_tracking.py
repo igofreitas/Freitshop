@@ -1,5 +1,6 @@
 """Uma visita por navegador/dia (UTC−3), com HMAC e sem guardar o IP bruto."""
 import base64
+import postgres_counter
 import hashlib
 import hmac
 import ipaddress
@@ -37,6 +38,7 @@ def client_ip(peer,headers):
     return chain[-hops-1]
 
 def hash_key():
+    if os.environ.get("DATABASE_URL", "").strip():return postgres_counter.hash_key()
     raw=os.environ.get('VISITOR_HASH_KEY','')
     if raw:
         key=base64.b64decode(raw,validate=True)
@@ -78,7 +80,9 @@ def browser_identity(cookie_header):
 
 def stats(visitor_id=None,now=None):
     instant=now or datetime.now(LOCAL_TZ)
-    today=day_of(instant);path=db_path();path.parent.mkdir(parents=True,exist_ok=True)
+    today=day_of(instant)
+    if os.environ.get("DATABASE_URL", "").strip():return postgres_counter.stats(visitor_id,instant,today)
+    path=db_path();path.parent.mkdir(parents=True,exist_ok=True)
     token=hmac.new(hash_key(),f'browser|{today}|{visitor_id}'.encode(),hashlib.sha256).hexdigest() if visitor_id is not None else None
     db=sqlite3.connect(path,timeout=10)
     try:

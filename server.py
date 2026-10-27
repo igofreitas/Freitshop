@@ -4,6 +4,7 @@ import price_history
 import feedback
 import admin
 import visitor_tracking
+from postgres_counter import CounterStorageError
 from datetime import timedelta
 from datetime import datetime, timezone
 from pathlib import Path
@@ -95,7 +96,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(200, operation())
         except feedback.FeedbackError as e:
             self.send_json(e.status, {'error':str(e)})
-        except (ImportError,sqlite3.Error,OSError,ValueError):
+        except (ImportError,sqlite3.Error,OSError,ValueError,CounterStorageError):
             self.send_json(503, {'error':'Feedback temporariamente indisponível. Verifique a configuração do serviço.'})
 
     def admin_operation(self,path):
@@ -113,7 +114,7 @@ class Handler(BaseHTTPRequestHandler):
             else:result,cookie=admin.mutate(path,data,admin.session(self.headers.get('Cookie','')),self.headers.get('X-CSRF-Token',''))
             self.respond(200,json.dumps(result).encode(),'application/json; charset=utf-8',cookie)
         except feedback.FeedbackError as e:self.send_json(e.status,{'error':str(e)})
-        except (ValueError,sqlite3.Error,OSError):self.send_json(503,{'error':'Não foi possível concluir. Confira os dados e o armazenamento do servidor.'})
+        except (ValueError,sqlite3.Error,OSError,CounterStorageError):self.send_json(503,{'error':'Não foi possível concluir. Confira os dados e o armazenamento do servidor.'})
 
     def do_POST(self):
         path=urlsplit(self.path).path
@@ -124,7 +125,7 @@ class Handler(BaseHTTPRequestHandler):
                 identity,cookie=visitor_tracking.browser_identity(self.headers.get('Cookie',''))
                 data=stats(True,visitor_id=identity)
                 self.respond(200,json.dumps(data).encode(),'application/json; charset=utf-8',cookie)
-            except (sqlite3.Error,OSError,ValueError):
+            except (sqlite3.Error,OSError,ValueError,CounterStorageError):
                 self.send_json(503,{'error':'Não foi possível registrar a visita. Verifique o armazenamento do servidor.'})
             return
         if path != '/api/feedback':
@@ -183,7 +184,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == '/api/stats':
             try: self.send_json(200, stats())
-            except (sqlite3.Error, OSError): self.send_json(503, {'error':'Contador temporariamente indisponível.'})
+            except (sqlite3.Error, OSError, CounterStorageError): self.send_json(503, {'error':'Contador temporariamente indisponível.'})
             return
         if parsed.path == '/api/site-config':
             self.send_json(200, ad_config()); return
@@ -213,7 +214,7 @@ class Handler(BaseHTTPRequestHandler):
                 snapshot=html.escape(json.dumps(counts),quote=True)
                 content=content.replace(b'id="accessCounter"',('id="accessCounter" data-server-value="true" data-stats="'+snapshot+'"').encode())
                 content=content.replace('>Carregando…</p>'.encode(),('>'+label+'</p>').encode(),1)
-            except (sqlite3.Error,OSError,ValueError):pass
+            except (sqlite3.Error,OSError,ValueError,CounterStorageError):pass
         self.respond(200,content,mime)
     def respond(self,status,body,mime,cookie=None):
         self.send_response(status)

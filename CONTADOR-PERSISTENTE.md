@@ -1,3 +1,5 @@
+> Novo: o contador agora usa PostgreSQL quando DATABASE_URL está configurada. Consulte POSTGRES-CONTADOR.md; as instruções de disco SQLite abaixo só se aplicam quando essa variável não está definida.
+
 # Contador sincronizado e persistente
 
 ## Comportamento

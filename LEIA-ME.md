@@ -1,3 +1,5 @@
+> Novo: o contador agora usa PostgreSQL quando DATABASE_URL está configurada. Consulte POSTGRES-CONTADOR.md; as instruções de disco SQLite abaixo só se aplicam quando essa variável não está definida.
+
 > Contador atualizado: consulte CONTADOR-PERSISTENTE.md para sincronização entre dispositivos e preservação do histórico em atualizações.
 
 > Atualização: consulte CORRECOES.md. O contador agora usa um cookie por navegador/dia; a ativação e a chave do feedback são automáticas em instalações novas. As instruções antigas por IP ou de configuração manual obrigatória abaixo foram substituídas.
