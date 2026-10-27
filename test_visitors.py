@@ -45,3 +45,13 @@ class VisitorTests(unittest.TestCase):
         self.assertEqual(visits.browser_identity(cookie.split(';')[0]),(identity,None))
         other,_=visits.browser_identity(cookie.split(';')[0]+'broken')
         self.assertNotEqual(identity,other)
+
+    def test_midnight_preserves_total_without_counting_open_pages(self):
+        before=datetime(2026,12,31,23,59,59,tzinfo=visits.LOCAL_TZ)
+        after=datetime(2027,1,1,0,0,0,tzinfo=visits.LOCAL_TZ)
+        visits.stats('browser-one',before);visits.stats('browser-two',before)
+        data=visits.stats(now=after)
+        self.assertEqual((data['today'],data['total'],data['date']),(0,2,'2027-01-01'))
+        self.assertEqual(data['serverTime'],int(after.timestamp()*1000))
+        self.assertEqual(visits.stats('browser-three',after)['total'],3)
+        self.assertEqual(visits.stats('browser-three',after)['today'],1)

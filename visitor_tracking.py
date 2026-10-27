@@ -77,7 +77,8 @@ def browser_identity(cookie_header):
     return identity,cookie
 
 def stats(visitor_id=None,now=None):
-    today=day_of(now);path=db_path();path.parent.mkdir(parents=True,exist_ok=True)
+    instant=now or datetime.now(LOCAL_TZ)
+    today=day_of(instant);path=db_path();path.parent.mkdir(parents=True,exist_ok=True)
     token=hmac.new(hash_key(),f'browser|{today}|{visitor_id}'.encode(),hashlib.sha256).hexdigest() if visitor_id is not None else None
     db=sqlite3.connect(path,timeout=10)
     try:
@@ -92,5 +93,5 @@ def stats(visitor_id=None,now=None):
                     db.execute('INSERT INTO unique_visit_totals(day,count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET count=count+1',(today,))
             total=db.execute('SELECT COALESCE(SUM(count),0) FROM unique_visit_totals').fetchone()[0]
             row=db.execute('SELECT count FROM unique_visit_totals WHERE day=?',(today,)).fetchone()
-        return {'total':total,'today':row[0] if row else 0,'date':today,'timezone':'UTC-03:00','metric':'unique_browser_per_day'}
+        return {'total':total,'today':row[0] if row else 0,'date':today,'timezone':'UTC-03:00','metric':'unique_browser_per_day','serverTime':int(instant.timestamp()*1000)}
     finally:db.close()

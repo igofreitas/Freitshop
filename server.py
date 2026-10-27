@@ -1,5 +1,5 @@
 """FreitShop: Python 3.10+. Instale requirements.txt para o módulo de feedback."""
-import json, os, time, math, threading, sqlite3, re
+import json, os, time, math, threading, sqlite3, re, html
 import price_history
 import feedback
 import admin
@@ -210,7 +210,8 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 counts=stats()
                 label=f"{counts['total']:,} no total • {counts['today']:,} hoje".replace(',','.')
-                content=content.replace(b'id="accessCounter"',b'id="accessCounter" data-server-value="true"')
+                snapshot=html.escape(json.dumps(counts),quote=True)
+                content=content.replace(b'id="accessCounter"',('id="accessCounter" data-server-value="true" data-stats="'+snapshot+'"').encode())
                 content=content.replace('>Carregando…</p>'.encode(),('>'+label+'</p>').encode(),1)
             except (sqlite3.Error,OSError,ValueError):pass
         self.respond(200,content,mime)

@@ -6,7 +6,7 @@
 - As consultas periódicas não geram visitas. Cada navegador conta uma vez por dia (UTC−3). Outro aparelho/navegador conta separadamente, mesmo no mesmo IP.
 - Total = soma histórica das visitas diárias registradas. Hoje = visitas únicas por navegador no dia atual. Não são usuários simultaneamente online nem número de recarregamentos.
 - O número salvo no servidor já vem no HTML. O navegador também mantém o último resultado para exibi-lo durante reconexões, identificado como valor anterior; esse cache não calcula nem aumenta a contagem.
-- Ao mudar de dia, o total é preservado e a contagem de hoje começa novamente. Páginas que continuam abertas registram a presença naquele novo dia uma única vez.
+- Ao mudar de dia, o total é preservado e a contagem de hoje começa novamente. Páginas que continuam abertas não registram visitas por causa da virada. Uma nova entrada/reabertura registra uma visita por navegador naquele dia. O relógio mostra dia/mês/ano e hora de Brasília, sincronizados com a API; às 00:00, o valor de hoje começa em zero e é atualizado com as novas visitas confirmadas pelo servidor.
 
 ## Aplicar sem perder o histórico
 
