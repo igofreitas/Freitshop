@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import storage
 import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -53,12 +54,9 @@ def offer_key(offer):
     return hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
 
 def connection():
-    path = Path(os.environ.get('PRICE_HISTORY_DB_PATH') or os.environ.get('STATS_DB_PATH') or str(ROOT/'data'/'access.sqlite3'))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(path, timeout=10)
-    db.execute('CREATE TABLE IF NOT EXISTS price_offers (id TEXT PRIMARY KEY, name TEXT NOT NULL, store TEXT NOT NULL, url TEXT NOT NULL)')
-    db.execute('CREATE TABLE IF NOT EXISTS price_observations (offer_id TEXT NOT NULL, day TEXT NOT NULL, price REAL NOT NULL, observed_at TEXT NOT NULL, PRIMARY KEY(offer_id,day))')
-    return db
+    path = Path(os.environ.get('PRICE_HISTORY_DB_PATH') or os.environ.get('STATS_DB_PATH') or str(Path(os.environ.get('FREITSHOP_DATA_DIR') or ROOT/'data')/'access.sqlite3'))
+    return storage.connect(path, """CREATE TABLE IF NOT EXISTS price_offers (id TEXT PRIMARY KEY, name TEXT NOT NULL, store TEXT NOT NULL, url TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS price_observations (offer_id TEXT NOT NULL, day TEXT NOT NULL, price REAL NOT NULL, observed_at TEXT NOT NULL, PRIMARY KEY(offer_id,day))""")
 
 def record(offers, fetched_at):
     day = datetime.fromisoformat(fetched_at).astimezone(LOCAL_TZ).date().isoformat()
@@ -67,7 +65,7 @@ def record(offers, fetched_at):
         with db:
             for offer in offers:
                 identity = offer_key(offer)
-                db.execute('INSERT OR REPLACE INTO price_offers(id,name,store,url) VALUES(?,?,?,?)', (identity,offer['name'],offer['store'],offer['url']))
+                db.execute('INSERT INTO price_offers(id,name,store,url) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,store=excluded.store,url=excluded.url', (identity,offer['name'],offer['store'],offer['url']))
                 # Última observação de cada dia. Respostas antigas não sobrescrevem novas.
                 db.execute('''INSERT INTO price_observations(offer_id,day,price,observed_at) VALUES(?,?,?,?)
                               ON CONFLICT(offer_id,day) DO UPDATE SET price=excluded.price,observed_at=excluded.observed_at

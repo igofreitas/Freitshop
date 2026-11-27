@@ -2,13 +2,57 @@
  const el=id=>document.getElementById(id);
  let csrf=null,editing=null,items=[],busy=false;
  const status=message=>el('adminStatus').textContent=message;
- function authenticated(value){csrf=value.csrf;el('adminLogin').hidden=value.authenticated;el('adminPanel').hidden=!value.authenticated;}
+ function authenticated(value){csrf=value.csrf;el('adminLogin').hidden=value.authenticated;el('adminPanel').hidden=!value.authenticated;
+  if(value.authenticated) loadManagement().catch(e=>status(e.message));
+  else {el('generalSettings').reset();el('moderationList').replaceChildren();}}
  async function api(path,data){
   const response=await fetch(path,{method:data?'POST':'GET',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf||''},...(data?{body:JSON.stringify(data)}:{})});
   let result;try{result=await response.json();}catch{throw Error('Abra o site pelo servidor Python atualizado.');}
   if(!response.ok){if(response.status===401)authenticated({authenticated:false,csrf:null});throw Error(result.error||'Não foi possível concluir.');}
   return result;
  }
+ let nextPage=null;
+ async function comments(before=null){
+  const page=await api('/api/feedback'+(before?'?before='+before:''));
+  if(!csrf)return;
+  const list=el('moderationList');
+  if(!before) list.replaceChildren();
+  if(!before && !page.items.length) list.textContent='Nenhum comentário publicado.';
+  for(const item of page.items){
+   const row=document.createElement('p');
+   const remove=document.createElement('button');
+   remove.type='button';remove.className='underline ml-4';remove.textContent='Remover';
+   remove.onclick=()=>{if(confirm('Remover este comentário do site?'))run(async()=>{
+    await api('/api/admin/comments/delete',{id:item.id});await comments();status('Comentário removido.');location.reload();
+   });};
+   row.append(document.createTextNode(item.rating+' ★ — '+item.comment),remove);list.append(row);
+  }
+  nextPage=page.nextBefore;el('moreModeration').hidden=!nextPage;
+ }
+ async function loadManagement(){
+  const cfg=await api('/api/admin/settings');
+  if(!csrf)return;
+  const fields=el('generalSettings').elements;
+  for(const key of ['title','intro','client','slot','privacyUrl'])fields.namedItem(key).value=cfg[key];
+  fields.namedItem('enabled').checked=cfg.enabled==='true';
+  await comments();
+ }
+ el('moreModeration').onclick=()=>run(()=>comments(nextPage));
+ el('generalSettings').onsubmit=e=>{
+  e.preventDefault();
+  run(async()=>{
+   const data=Object.fromEntries(new FormData(e.target));
+   data.enabled=e.target.elements.namedItem('enabled').checked?'true':'false';
+   await api('/api/admin/settings',data);location.reload();
+  });
+ };
+ el('downloadBackup').onclick=()=>run(async()=>{
+  const backup=await api('/api/admin/backup',{});
+  const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}));
+  const link=document.createElement('a');link.href=url;link.download='FreitShop-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+  status('Backup de conteúdo pronto para download.');
+ });
  function reset(){editing=null;el('sponsorForm').reset();el('sponsorSave').textContent='Adicionar patrocinador';el('sponsorCancel').hidden=true;}
  function render(){
   el('sponsorsList').replaceChildren();el('sponsorManagement').replaceChildren();el('sponsorsSection').hidden=!items.length;

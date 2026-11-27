@@ -5,6 +5,7 @@ import os
 import re
 import secrets
 import sqlite3
+import storage
 import time
 import threading
 from datetime import datetime, timezone
@@ -32,11 +33,13 @@ def decode_key(value):
 
 def security_config():
     if not os.environ.get('FEEDBACK_KEYS_JSON') and not os.environ.get('FEEDBACK_ACTIVE_KEY'):
-        path=Path(os.environ.get('FEEDBACK_KEY_FILE') or str(Path(os.environ.get('FEEDBACK_DB_PATH') or ROOT/'data'/'feedback.sqlite3').with_suffix('.key')))
+        if os.environ.get("DATABASE_URL","").strip():
+            raise FeedbackError(503,"Configure as chaves permanentes das avaliações no servidor.")
+        path=Path(os.environ.get('FEEDBACK_KEY_FILE') or str(Path(os.environ.get('FEEDBACK_DB_PATH') or Path(os.environ.get('FREITSHOP_DATA_DIR') or ROOT/'data')/'feedback.sqlite3').with_suffix('.key')))
         with KEY_LOCK:
             path.parent.mkdir(parents=True,exist_ok=True)
             # Nunca substituir uma chave perdida de um banco já existente.
-            dbpath=Path(os.environ.get('FEEDBACK_DB_PATH') or ROOT/'data'/'feedback.sqlite3')
+            dbpath=Path(os.environ.get('FEEDBACK_DB_PATH') or Path(os.environ.get('FREITSHOP_DATA_DIR') or ROOT/'data')/'feedback.sqlite3')
             if not path.exists() and dbpath.exists() and dbpath.stat().st_size:
                 raise FeedbackError(503,'Restaure a chave de criptografia usada pelo banco de avaliações existente.')
             try: fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
@@ -89,15 +92,12 @@ def public_config():
 
 
 def connect():
-    path=Path(os.environ.get('FEEDBACK_DB_PATH') or str(ROOT/'data'/'feedback.sqlite3'))
-    path.parent.mkdir(parents=True,exist_ok=True)
-    db=sqlite3.connect(path,timeout=10)
-    db.execute('''CREATE TABLE IF NOT EXISTS feedback (
+    path=Path(os.environ.get('FEEDBACK_DB_PATH') or str(Path(os.environ.get('FREITSHOP_DATA_DIR') or ROOT/'data')/'feedback.sqlite3'))
+    return storage.connect(path, """CREATE TABLE IF NOT EXISTS feedback (
         id INTEGER PRIMARY KEY AUTOINCREMENT, owner TEXT UNIQUE NOT NULL,
         key_id TEXT NOT NULL, nonce BLOB NOT NULL, ciphertext BLOB NOT NULL,
-        created_at TEXT NOT NULL, updated_at TEXT NOT NULL)''')
-    db.execute('CREATE TABLE IF NOT EXISTS feedback_limits(owner TEXT PRIMARY KEY, window INTEGER NOT NULL, count INTEGER NOT NULL)')
-    return db
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS feedback_limits(owner TEXT PRIMARY KEY, "window" INTEGER NOT NULL, count INTEGER NOT NULL)""")
 
 
 def validate(data):
@@ -134,11 +134,11 @@ def decode_row(row):
 
 def rate_limit(db,owner):
     window=int(time.time()//60)
-    db.execute('DELETE FROM feedback_limits WHERE window < ?', (window-1,))
-    row=db.execute('SELECT window,count FROM feedback_limits WHERE owner=?',(owner,)).fetchone()
+    db.execute('DELETE FROM feedback_limits WHERE "window" < ?', (window-1,))
+    row=db.execute('SELECT "window",count FROM feedback_limits WHERE owner=?',(owner,)).fetchone()
     count=row[1] if row and row[0]==window else 0
     if count>=6: raise FeedbackError(429,'Muitas alterações. Aguarde um minuto e tente novamente.')
-    db.execute('INSERT OR REPLACE INTO feedback_limits(owner,window,count) VALUES(?,?,?)',(owner,window,count+1))
+    db.execute('INSERT INTO feedback_limits(owner,"window",count) VALUES(?,?,?) ON CONFLICT(owner) DO UPDATE SET "window"=excluded."window",count=excluded.count',(owner,window,count+1))
 
 
 def submit_anonymous(data,rate_id):

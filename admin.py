@@ -1,5 +1,6 @@
 """Admin master: senha com PBKDF2, sessões opacas e patrocinadores persistentes."""
 import hashlib,hmac,os,secrets,sqlite3,time
+import storage
 from pathlib import Path
 from http.cookies import SimpleCookie,CookieError
 from urllib.parse import urlsplit
@@ -8,11 +9,8 @@ DEFAULT_HASH = '58222149dd925d0e8ce3f4e45375a3e9f7aa8ee56f364affddbc635ceeb87f99
 DEFAULT_SALT = '6e74192f33d6125f712db38118b7e73a'
 
 def connect():
-    path=Path(os.environ.get('ADMIN_DB_PATH',str(Path(__file__).resolve().parent/'data'/'admin.sqlite3')))
-    path.parent.mkdir(parents=True,exist_ok=True)
-    db=sqlite3.connect(path,timeout=10)
-    db.executescript('CREATE TABLE IF NOT EXISTS sponsors(id INTEGER PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,csrf TEXT NOT NULL,expires REAL NOT NULL); CREATE TABLE IF NOT EXISTS attempts(client TEXT PRIMARY KEY,count INTEGER NOT NULL,expires REAL NOT NULL);')
-    return db
+    path=Path(os.environ.get('ADMIN_DB_PATH',str(Path(os.environ.get('FREITSHOP_DATA_DIR') or Path(__file__).resolve().parent/'data')/'admin.sqlite3')))
+    return storage.connect(path, """CREATE TABLE IF NOT EXISTS site_settings(name TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sponsors(id INTEGER PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,csrf TEXT NOT NULL,expires REAL NOT NULL); CREATE TABLE IF NOT EXISTS attempts(client TEXT PRIMARY KEY,count INTEGER NOT NULL,expires REAL NOT NULL)""")
 
 def token_hash(token):return hashlib.sha256(token.encode()).hexdigest()
 
@@ -39,7 +37,7 @@ def login(data,client,old_cookie):
             db.execute('DELETE FROM attempts WHERE expires<?',(time.time(),))
             row=db.execute('SELECT count FROM attempts WHERE client=?',(client,)).fetchone()
             if row and row[0]>=10:raise FeedbackError(429,'Aguarde 15 minutos antes de tentar novamente.')
-            db.execute('INSERT INTO attempts VALUES(?,1,?) ON CONFLICT(client) DO UPDATE SET count=count+1',(client,time.time()+900))
+            db.execute('INSERT INTO attempts VALUES(?,1,?) ON CONFLICT(client) DO UPDATE SET count=attempts.count+1',(client,time.time()+900))
         expected=os.environ.get('ADMIN_PASSWORD_HASH',DEFAULT_HASH)
         salt=os.environ.get('ADMIN_PASSWORD_SALT',DEFAULT_SALT)
         candidate=hashlib.pbkdf2_hmac('sha256',password.encode(),bytes.fromhex(salt),600000).hex()
@@ -62,6 +60,12 @@ def listing():
 def mutate(path,data,current,csrf):
     if not current:raise FeedbackError(401,'Entre novamente para administrar.')
     if not hmac.compare_digest(csrf,current[1]):raise FeedbackError(403,'Sessão inválida. Entre novamente.')
+    import site_management
+    operations = {'/api/admin/settings':site_management.save, '/api/admin/comments/delete':site_management.remove_comment}
+    if path in operations:
+        return operations[path](data),None
+    if path=='/api/admin/backup':
+        return site_management.export_content(),None
     db=connect()
     try:
         with db:
