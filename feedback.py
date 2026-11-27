@@ -100,7 +100,7 @@ def connect():
 CREATE TABLE IF NOT EXISTS feedback_limits(owner TEXT PRIMARY KEY, "window" INTEGER NOT NULL, count INTEGER NOT NULL)""")
 
 
-def validate(data):
+def validate(data, *, legacy=False):
     if not isinstance(data,dict): raise FeedbackError(400,'Dados inválidos.')
     rating=data.get('rating'); comment=data.get('comment')
     if type(rating) is not int or not 1<=rating<=5:
@@ -110,7 +110,15 @@ def validate(data):
     # Unicode code points; rejeita controles e surrogates não válidos.
     if any((ord(c)<32 and c not in '\n\t') or 0xD800<=ord(c)<=0xDFFF for c in comment):
         raise FeedbackError(400,'O comentário contém caracteres inválidos.')
-    return {'rating':rating,'comment':comment.strip()}
+    result = {'rating':rating,'comment':comment.strip()}
+    if legacy and 'firstName' not in data and 'lastName' not in data:
+        return result
+    for field in ('firstName','lastName'):
+        value = data.get(field)
+        if not isinstance(value,str) or not 1 <= len(value.strip()) <= 80 or not value.isprintable() or not any(c.isalpha() for c in value):
+            raise FeedbackError(400,'Preencha nome e sobrenome válidos.')
+        result[field] = value.strip()
+    return result
 
 
 def encrypt(owner,data):
@@ -126,10 +134,10 @@ def decode_row(row):
     try:
         keys,_,_=security_config()
         data=json.loads(AESGCM(keys[key_id]).decrypt(nonce,ciphertext,('freitshop-feedback:'+owner).encode()))
-        data=validate(data)
+        data=validate(data,legacy=True)
     except Exception:
         raise FeedbackError(503,'Um registro não pôde ser lido com segurança. Contate o administrador.') from None
-    return {'id':identity,'rating':data['rating'],'comment':data['comment'],'author':'Visitante','createdAt':created,'updatedAt':updated}
+    return {'id':identity,'rating':data['rating'],'comment':data['comment'],**data,'author':' '.join(data[k] for k in ('firstName','lastName') if k in data) or 'Avaliação anterior','createdAt':created,'updatedAt':updated}
 
 
 def rate_limit(db,owner):

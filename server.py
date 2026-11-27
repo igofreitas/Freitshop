@@ -120,7 +120,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path=urlsplit(self.path).path
-        if path in ('/api/admin/login','/api/admin/logout','/api/admin/sponsors','/api/admin/sponsors/delete','/api/admin/settings','/api/admin/comments/delete','/api/admin/backup'):
+        if path in ('/api/admin/login','/api/admin/logout','/api/admin/sponsors','/api/admin/sponsors/delete','/api/admin/affiliates','/api/admin/affiliates/delete','/api/admin/settings','/api/admin/comments/delete','/api/admin/backup'):
             self.admin_operation(path);return
         if path == '/api/visit':
             try:
@@ -158,6 +158,22 @@ class Handler(BaseHTTPRequestHandler):
                     raise feedback.FeedbackError(401,'Entre para administrar.')
                 return site_management.settings()
             self.feedback_operation(read_settings);return
+        if parsed.path in ('/login','/admin'):
+            try:
+                signed_in = bool(admin.session(self.headers.get('Cookie','')))
+            except (sqlite3.Error,OSError):
+                self.send_json(503,{'error':'Sessão indisponível.'});return
+            if (parsed.path=='/admin') != signed_in:
+                self.send_response(303)
+                self.send_header('Location','/admin' if signed_in else '/login')
+                self.send_header('Cache-Control','no-store')
+                self.end_headers();return
+            filename = 'panel.html' if signed_in else 'login.html'
+            self.respond(200,(ROOT/filename).read_bytes(),'text/html; charset=utf-8');return
+        if parsed.path=='/api/visit-history':
+            self.feedback_operation(visitor_tracking.history);return
+        if parsed.path=='/api/affiliates':
+            self.feedback_operation(lambda:admin.listing(True));return
         if parsed.path=='/api/sponsors':
             self.feedback_operation(admin.listing);return
         if parsed.path=='/api/admin/session':
@@ -207,7 +223,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(400, {'error':'Digite entre 2 e 160 caracteres.'}); return
             status, data=search(query)
             self.send_json(status,data); return
-        files={'/counter.js':('counter.js','text/javascript; charset=utf-8'),'/admin.js':('admin.js','text/javascript; charset=utf-8'),'/feedback.js':('feedback.js','text/javascript; charset=utf-8'),'/':('index.html','text/html; charset=utf-8'),'/index.html':('index.html','text/html; charset=utf-8'),'/app.js':('app.js','text/javascript; charset=utf-8')}
+        files={'/acessos':('visits.html','text/html; charset=utf-8'),'/visits.js':('visits.js','text/javascript; charset=utf-8'),'/counter.js':('counter.js','text/javascript; charset=utf-8'),'/admin.js':('admin.js','text/javascript; charset=utf-8'),'/feedback.js':('feedback.js','text/javascript; charset=utf-8'),'/':('index.html','text/html; charset=utf-8'),'/index.html':('index.html','text/html; charset=utf-8'),'/app.js':('app.js','text/javascript; charset=utf-8')}
         if parsed.path not in files:
             self.send_json(404,{'error':'Não encontrado.'}); return
         filename, mime=files[parsed.path]

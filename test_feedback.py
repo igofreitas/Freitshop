@@ -12,20 +12,22 @@ class FeedbackTests(unittest.TestCase):
         self.env.start()
     def tearDown(self):self.env.stop();self.tmp.cleanup()
     def test_validation(self):
-        self.assertEqual(len(feedback.validate({'rating':5,'comment':'🙂'*500})['comment']),500)
-        for data in [{'rating':6,'comment':'ok'},{'rating':0,'comment':'ok'},{'rating':True,'comment':'ok'},{'rating':1.5,'comment':'ok'},{'rating':5,'comment':'a'*501},{'rating':5,'comment':'   '},[]]:
+        self.assertEqual(len(feedback.validate({'firstName':'Ana','lastName':'Silva','rating':5,'comment':'🙂'*500})['comment']),500)
+        for incomplete in ({'rating':5,'comment':'Teste'},{'rating':5,'comment':'Teste','firstName':'Ana','lastName':' '}):
+            with self.assertRaises(feedback.FeedbackError): feedback.validate(incomplete)
+        for data in [{'firstName':'Ana','lastName':'Silva','rating':6,'comment':'ok'},{'firstName':'Ana','lastName':'Silva','rating':0,'comment':'ok'},{'firstName':'Ana','lastName':'Silva','rating':True,'comment':'ok'},{'firstName':'Ana','lastName':'Silva','rating':1.5,'comment':'ok'},{'firstName':'Ana','lastName':'Silva','rating':5,'comment':'a'*501},{'firstName':'Ana','lastName':'Silva','rating':5,'comment':'   '},[]]:
             with self.assertRaises(feedback.FeedbackError):feedback.validate(data)
     def test_anonymous_encrypted(self):
-        feedback.submit_anonymous({'rating':5,'comment':'Texto privado em disco'},'rate-hash')
-        feedback.submit_anonymous({'rating':4,'comment':'Outro'},'rate-hash')
+        feedback.submit_anonymous({'firstName':'Ana','lastName':'Silva','rating':5,'comment':'Texto privado em disco'},'rate-hash')
+        feedback.submit_anonymous({'firstName':'Ana','lastName':'Silva','rating':4,'comment':'Outro'},'rate-hash')
         self.assertNotIn(b'Texto privado',Path(os.environ['FEEDBACK_DB_PATH']).read_bytes())
-        items=feedback.listing()['items'];self.assertEqual(len(items),2);self.assertTrue(all(p['author']=='Visitante' for p in items))
+        items=feedback.listing()['items'];self.assertEqual(len(items),2);self.assertTrue(all(p['author']=='Ana Silva' for p in items))
     def test_rate_limit(self):
-        for _ in range(6):feedback.submit_anonymous({'rating':5,'comment':'oi'},'rate-hash')
-        with self.assertRaises(feedback.FeedbackError) as e:feedback.submit_anonymous({'rating':5,'comment':'oi'},'rate-hash')
+        for _ in range(6):feedback.submit_anonymous({'firstName':'Ana','lastName':'Silva','rating':5,'comment':'oi'},'rate-hash')
+        with self.assertRaises(feedback.FeedbackError) as e:feedback.submit_anonymous({'firstName':'Ana','lastName':'Silva','rating':5,'comment':'oi'},'rate-hash')
         self.assertEqual(e.exception.status,429)
     def test_tamper(self):
-        feedback.submit_anonymous({'rating':5,'comment':'oi'},'rate-hash');db=feedback.connect()
+        feedback.submit_anonymous({'firstName':'Ana','lastName':'Silva','rating':5,'comment':'oi'},'rate-hash');db=feedback.connect()
         with db:db.execute('UPDATE feedback SET ciphertext=?',(b'tampered',))
         db.close()
         with self.assertRaises(feedback.FeedbackError):feedback.listing()
@@ -48,11 +50,11 @@ class FeedbackTests(unittest.TestCase):
                 with urlopen(req) as r:return r.status,json.load(r)
             except HTTPError as e:return e.code,json.load(e)
         try:
-            self.assertEqual(call('/api/feedback',{'rating':5,'comment':'Sem login'})[0],200)
+            self.assertEqual(call('/api/feedback',{'firstName':'Ana','lastName':'Silva','rating':5,'comment':'Sem login'})[0],200)
             self.assertEqual(call('/api/feedback')[1]['items'][0]['comment'],'Sem login')
-            self.assertEqual(call('/api/feedback',{'rating':5,'comment':'bad'},'https://evil.com')[0],403)
-            self.assertEqual(call('/api/feedback',{'rating':9,'comment':'bad'})[0],400)
-            self.assertEqual(call('/api/feedback',{'rating':5,'comment':'a'*9000})[0],413)
+            self.assertEqual(call('/api/feedback',{'firstName':'Ana','lastName':'Silva','rating':5,'comment':'bad'},'https://evil.com')[0],403)
+            self.assertEqual(call('/api/feedback',{'firstName':'Ana','lastName':'Silva','rating':9,'comment':'bad'})[0],400)
+            self.assertEqual(call('/api/feedback',{'firstName':'Ana','lastName':'Silva','rating':5,'comment':'a'*9000})[0],413)
             self.assertEqual(call('/api/feedback/delete',{})[0],404)
             self.assertEqual(call('/api/feedback/mine')[0],404)
         finally:srv.shutdown();srv.server_close();t.join()
@@ -63,7 +65,7 @@ class FeedbackTests(unittest.TestCase):
             self.assertTrue(feedback.public_config()['enabled'])
             feedback.check_origin('http://localhost:8000','localhost:8000')
             with self.assertRaises(feedback.FeedbackError):feedback.check_origin('https://evil.com','localhost:8000')
-            feedback.submit_anonymous({'rating':5,'comment':'Publicação automática'},'rate')
+            feedback.submit_anonymous({'firstName':'Ana','lastName':'Silva','rating':5,'comment':'Publicação automática'},'rate')
             self.assertEqual(feedback.listing()['items'][0]['comment'],'Publicação automática')
             self.assertTrue(Path(self.tmp.name+'/feedback.key').exists())
             Path(self.tmp.name+'/feedback.key').unlink()

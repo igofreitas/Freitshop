@@ -99,3 +99,17 @@ def stats(visitor_id=None,now=None):
             row=db.execute('SELECT count FROM unique_visit_totals WHERE day=?',(today,)).fetchone()
         return {'total':total,'today':row[0] if row else 0,'date':today,'timezone':'UTC-03:00','metric':'unique_browser_per_day','serverTime':int(instant.timestamp()*1000)}
     finally:db.close()
+
+
+def history():
+    if os.environ.get('DATABASE_URL','').strip():
+        with postgres_counter.connection() as db:
+            rows = db.execute('SELECT day,count FROM freitshop_visit_totals ORDER BY day').fetchall()
+    else:
+        stats()  # Inicializa as tabelas também em uma instalação nova.
+        db = sqlite3.connect(db_path(),timeout=10)
+        try:
+            rows = db.execute('SELECT day,count FROM unique_visit_totals ORDER BY day').fetchall()
+        finally:
+            db.close()
+    return {'days':[{'date':str(day),'count':count} for day,count in rows], 'today':day_of()}

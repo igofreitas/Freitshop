@@ -17,7 +17,7 @@ function appendReviews(items){
  if(!items.length&&!el('feedbackList').children.length){const p=document.createElement('p');p.textContent='Ainda não há avaliações. Compartilhe sua experiência.';p.className='text-sm text-gray-400';el('feedbackList').appendChild(p);}
  for(const item of items){
   const card=document.createElement('article');card.className='border border-purple-900/40 rounded-xl p-4';
-  const head=document.createElement('p');head.className='text-sm text-purple-300';head.textContent='Visitante';
+  const head=document.createElement('p');head.className='text-sm text-purple-300';head.textContent=item.author;
   const stars=document.createElement('p');stars.className='text-amber-300 mt-1';stars.textContent='★'.repeat(item.rating)+'☆'.repeat(5-item.rating);stars.setAttribute('aria-label',item.rating+' de 5 estrelas');
   const text=document.createElement('p');text.className='text-sm text-gray-200 mt-3';text.style.whiteSpace='pre-wrap';text.style.overflowWrap='anywhere';text.textContent=item.comment;
   const date=document.createElement('p');date.className='text-xs text-gray-400 mt-2';date.textContent=new Date(item.updatedAt).toLocaleDateString('pt-BR');
@@ -50,7 +50,7 @@ el('feedbackForm').addEventListener('submit',async event=>{
  const rating=Number(document.querySelector('input[name="feedbackRating"]:checked')?.value);
  setBusy(true);
  try{
-  const data=await request('/api/feedback',{method:'POST',body:JSON.stringify({rating,comment:el('feedbackComment').value})});
+  const data=await request('/api/feedback',{method:'POST',body:JSON.stringify({rating,firstName:el('firstName').value.trim(),lastName:el('lastName').value.trim(),comment:el('feedbackComment').value})});
   el('feedbackForm').reset();countCharacters();status(data.message);
   try{await loadReviews(true);}catch{status('Avaliação publicada. Atualize a página para ver a lista.');}
  }catch(e){status(e.message);}finally{setBusy(false);}

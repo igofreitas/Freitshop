@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel administrativo · FreitShop</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #0d0d12;
+            color: #e2e8f0;
+        }
+        .bg-dark-card {
+            background-color: #16161e;
+        }
+        .bg-dark-input {
+            background-color: #1f1f2e;
+        }
+        .border-dark {
+            border-color: #2e2e48;
+        }
+        [hidden] { display: none !important; }
+        .bf-choice { width:100%; text-align:left; padding:16px; border:1px solid #3b3154; border-radius:12px; background:#16161e; }
+        .bf-choice:hover, .bf-choice[aria-pressed="true"] { border-color:#a3e635; background:#20251a; }
+        .bf-choice:focus-visible { outline:3px solid #a3e635; outline-offset:3px; }
+        #bfChart svg { width:100%; height:auto; min-width:480px; }
+    </style>
+</head><body><header class="border-b border-purple-900/50"><nav class="max-w-4xl mx-auto p-5 flex flex-wrap gap-5"><a class="font-bold text-purple-300" href="/">FreitShop</a><a href="/#searchInput">Pesquisa</a><a href="/#blackFridayButton">Black Friday</a><a href="/#afiliados">Links de Afiliados</a></nav></header><main class="max-w-4xl mx-auto px-5 py-10"><h1 class="text-3xl font-bold mb-6">Painel administrativo</h1><p id="adminStatus" role="status" class="my-4 text-purple-200"></p><div id="adminPanel" hidden class="mt-6">
+          <div class="flex justify-between gap-4"><h3 class="font-bold">Gerenciar links</h3><button id="adminLogout" type="button" class="underline">Sair</button></div>
+          <label class="block mt-5">Tipo de link <select id="linkType" class="bg-dark-input p-2"><option value="sponsors">Patrocinadores</option><option value="affiliates">Links de afiliados</option></select></label><form id="sponsorForm" class="flex flex-wrap gap-4 items-end mt-4">
+            <label>Nome de exibição<input id="sponsorName" required maxlength="120" class="block bg-dark-input rounded-xl p-3 mt-2"></label>
+            <label>Link (URL)<input id="sponsorUrl" type="url" required maxlength="2048" placeholder="https://" class="block bg-dark-input rounded-xl p-3 mt-2"></label>
+            <button id="sponsorSave" class="bg-purple-700 rounded-xl px-5 py-3">Adicionar link</button>
+            <button id="sponsorCancel" type="button" hidden class="underline">Cancelar edição</button>
+          </form>
+          <div id="sponsorManagement" class="space-y-3 mt-5"></div>
+          <form id="generalSettings" class="grid gap-3 mt-6">
+            <h3 class="font-bold">Página inicial</h3>
+            <label>Título<input name="title" maxlength="120" required class="block bg-dark-input rounded p-2 w-full"></label>
+            <label>Descrição<textarea name="intro" maxlength="500" required class="block bg-dark-input rounded p-2 w-full"></textarea></label>
+            <h3 class="font-bold">Google AdSense</h3>
+            <label>ID do editor<input name="client" placeholder="ca-pub-0000000000000000" class="block bg-dark-input p-2"></label>
+            <label>ID do bloco de anúncios<input name="slot" inputmode="numeric" class="block bg-dark-input p-2"></label>
+            <label>Link da política de privacidade<input name="privacyUrl" type="url" class="block bg-dark-input p-2 w-full"></label>
+            <label><input name="enabled" type="checkbox"> Exibir anúncios</label>
+            <button class="bg-purple-700 rounded-xl px-5 py-3">Salvar configurações</button>
+          </form>
+          <h3 class="font-bold mt-6">Moderação de comentários</h3>
+          <div id="moderationList"></div><button id="moreModeration" type="button" hidden>Carregar mais comentários</button>
+          <button id="downloadBackup" type="button" class="bg-purple-700 rounded-xl px-5 py-3 mt-6">Baixar backup de conteúdo</button>
+
+        </div>
+</main><script src="/admin.js"></script></body></html>

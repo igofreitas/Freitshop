@@ -33,7 +33,7 @@
 <body class="font-sans antialiased min-h-screen flex flex-col">
 
     <!-- Cabeçalho -->
-    <header class="bg-black/80 backdrop-blur-md border-b border-purple-900/50 text-white sticky top-0 z-40">
+    <header class="bg-black/80 backdrop-blur-md border-b border-purple-900/50 text-white relative z-40">
         <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col xl:flex-row items-center justify-between gap-4">
             
             <!-- Logo FreitShop -->
@@ -65,15 +65,16 @@
                     <i class="fa-solid fa-scale-balanced text-red-400"></i>
                     <span>Comparar (<span id="compareCount" class="text-red-400 font-bold">0</span>)</span>
                 </button>
-                <div class="bg-dark-card border border-purple-500/30 rounded-xl px-3 py-2 w-36 text-center" title="Uma visita por navegador por dia. O total soma as contagens diárias.">
+                <a href="/acessos" aria-label="Ver histórico diário de visitas" class="bg-dark-card border border-purple-500/30 rounded-xl px-3 py-2 w-36 text-center" title="Uma visita por navegador por dia. O total soma as contagens diárias.">
                     <p class="text-xs font-semibold text-purple-300"><i class="fa-solid fa-eye mr-1" aria-hidden="true"></i> Visitas ao site</p>
                     <p id="accessCounter" role="status" aria-live="polite" class="text-xs text-gray-100 mt-1 tabular-nums">Carregando…</p>
                     <time id="accessClock" class="block text-xs text-purple-200 mt-2 tabular-nums" aria-label="Data e hora de Brasília"></time>
                     <p class="text-xs text-gray-400">Horário de Brasília</p>
                     <p id="accessCounterStatus" class="text-xs text-gray-400 mt-1">Sincronizando com o servidor…</p>
-                </div>
+                </a>
             </div>
         </div>
+        <nav aria-label="Menu principal" class="flex flex-wrap justify-center gap-4 px-4 pb-3 text-sm font-semibold"><a href="#searchInput">Pesquisa</a><a href="#blackFridayButton" class="text-lime-300">Black Friday</a><a href="#afiliados">Links de Afiliados</a><a href="/login" class="text-purple-300">Login</a></nav>
     </header>
 
     <!-- Conteúdo Principal -->
@@ -175,11 +176,11 @@
       <div class="bg-dark-card border border-purple-900/40 rounded-2xl p-6">
         <h2 id="feedbackHeading" class="text-2xl font-bold text-purple-300">Sua opinião sobre o FreitShop</h2>
         <p class="text-sm text-gray-300 mt-2">Avalie sem cadastro: escolha de 1 a 5 estrelas e escreva um comentário de até 500 caracteres.</p>
-        <p class="text-xs text-gray-400 mt-2">O comentário e as estrelas serão públicos como “Visitante”. Não inclua telefone, e-mail ou outros dados pessoais no texto.</p>
+        <p class="text-xs text-gray-400 mt-2">Seu nome e sobrenome serão publicados junto com a avaliação. Não inclua telefone, e-mail ou outros dados pessoais no texto.</p>
         <p id="feedbackStatus" role="status" aria-live="polite" class="text-sm text-purple-200 my-4">Carregando feedback…</p>
         <form id="feedbackForm" class="border-t border-purple-900/40 pt-5 mt-5">
           <fieldset id="feedbackEditor"><legend class="sr-only">Escrever avaliação</legend>
-          <fieldset><legend class="text-sm font-bold mb-2">Sua avaliação (obrigatória)</legend><div class="flex flex-wrap gap-3">
+          <div class="grid sm:grid-cols-2 gap-4 mb-5"><label>Nome<input id="firstName" autocomplete="given-name" maxlength="80" required class="block w-full bg-dark-input rounded p-2"></label><label>Sobrenome<input id="lastName" autocomplete="family-name" maxlength="80" required class="block w-full bg-dark-input rounded p-2"></label></div><fieldset><legend class="text-sm font-bold mb-2">Sua avaliação (obrigatória)</legend><div class="flex flex-wrap gap-3">
             <label class="cursor-pointer text-amber-300"><input type="radio" name="feedbackRating" value="1" required> 1 ★</label>
             <label class="cursor-pointer text-amber-300"><input type="radio" name="feedbackRating" value="2"> 2 ★</label>
             <label class="cursor-pointer text-amber-300"><input type="radio" name="feedbackRating" value="3"> 3 ★</label>
@@ -201,48 +202,13 @@
       <h2 id="sponsorsHeading" class="text-xl font-bold text-purple-300 mb-4">Patrocinadores</h2>
       <div id="sponsorsList" class="flex flex-wrap gap-4"></div>
     </section>
-    <section class="max-w-7xl mx-auto px-4 py-6 w-full" aria-labelledby="adminHeading">
-      <div class="bg-dark-card border border-purple-900/40 rounded-2xl p-6">
-        <h2 id="adminHeading" class="text-xl font-bold text-purple-300">Administração</h2>
-        <form id="adminLogin" class="mt-4 flex flex-wrap items-end gap-4">
-          <label>Usuário<input id="adminUsername" autocomplete="username" required class="block bg-dark-input rounded-xl p-3 mt-2"></label>
-          <label>Senha<input id="adminPassword" type="password" autocomplete="current-password" required class="block bg-dark-input rounded-xl p-3 mt-2"></label>
-          <button class="bg-purple-700 rounded-xl px-5 py-3">Entrar</button>
-        </form>
-        <p id="adminStatus" role="status" aria-live="polite" class="text-sm mt-4"></p>
-        <div id="adminPanel" hidden class="mt-6">
-          <div class="flex justify-between gap-4"><h3 class="font-bold">Gerenciar patrocinadores</h3><button id="adminLogout" type="button" class="underline">Sair</button></div>
-          <form id="sponsorForm" class="flex flex-wrap gap-4 items-end mt-4">
-            <label>Nome do patrocinador<input id="sponsorName" required maxlength="120" class="block bg-dark-input rounded-xl p-3 mt-2"></label>
-            <label>Link (URL)<input id="sponsorUrl" type="url" required maxlength="2048" placeholder="https://" class="block bg-dark-input rounded-xl p-3 mt-2"></label>
-            <button id="sponsorSave" class="bg-purple-700 rounded-xl px-5 py-3">Adicionar patrocinador</button>
-            <button id="sponsorCancel" type="button" hidden class="underline">Cancelar edição</button>
-          </form>
-          <div id="sponsorManagement" class="space-y-3 mt-5"></div>
-          <form id="generalSettings" class="grid gap-3 mt-6">
-            <h3 class="font-bold">Página inicial</h3>
-            <label>Título<input name="title" maxlength="120" required class="block bg-dark-input rounded p-2 w-full"></label>
-            <label>Descrição<textarea name="intro" maxlength="500" required class="block bg-dark-input rounded p-2 w-full"></textarea></label>
-            <h3 class="font-bold">Google AdSense</h3>
-            <label>ID do editor<input name="client" placeholder="ca-pub-0000000000000000" class="block bg-dark-input p-2"></label>
-            <label>ID do bloco de anúncios<input name="slot" inputmode="numeric" class="block bg-dark-input p-2"></label>
-            <label>Link da política de privacidade<input name="privacyUrl" type="url" class="block bg-dark-input p-2 w-full"></label>
-            <label><input name="enabled" type="checkbox"> Exibir anúncios</label>
-            <button class="bg-purple-700 rounded-xl px-5 py-3">Salvar configurações</button>
-          </form>
-          <h3 class="font-bold mt-6">Moderação de comentários</h3>
-          <div id="moderationList"></div><button id="moreModeration" type="button" hidden>Carregar mais comentários</button>
-          <button id="downloadBackup" type="button" class="bg-purple-700 rounded-xl px-5 py-3 mt-6">Baixar backup de conteúdo</button>
-
-        </div>
-      </div>
-    </section>
+    <section id="afiliados" class="max-w-7xl mx-auto p-6 w-full"><h2 class="text-xl font-bold text-purple-300">Links de Afiliados</h2><p class="text-sm text-gray-400 my-2">O FreitShop pode receber comissão por compras feitas por estes links.</p><div id="affiliateList" class="flex flex-wrap gap-4"></div></section>
     <div id="creatorCredits" class="border-t border-purple-900/40 px-4 py-6 text-center text-sm text-gray-400">
       <p>Criador: <strong class="text-gray-200">Igo Almeida Rios de Freitas</strong></p>
       <a href="https://www.instagram.com/igo.fts/" target="_blank" rel="noopener noreferrer" class="inline-block mt-3 text-purple-300 underline hover:text-purple-200" aria-label="Instagram de Igo Almeida Rios de Freitas (abre em nova aba)">Instagram: @igo.fts</a>
     </div>
     <script src="/counter.js" defer></script>
     <script src="/app.js"></script>
-    <script src="/admin.js" defer></script>
+
 </body>
 </html>

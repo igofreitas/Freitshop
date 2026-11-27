@@ -20,7 +20,7 @@ if __name__=='__main__':
                 rows=db.execute('SELECT * FROM feedback').fetchall()
                 for row in rows:
                     data=feedback.decode_row(row)
-                    key,nonce,ciphertext=feedback.encrypt(row[1],{'rating':data['rating'],'comment':data['comment']})
+                    key,nonce,ciphertext=feedback.encrypt(row[1],{k:data[k] for k in ('rating','comment','firstName','lastName') if k in data})
                     db.execute('UPDATE feedback SET key_id=?,nonce=?,ciphertext=? WHERE id=?',(key,nonce,ciphertext,row[0]))
                 print('Registros recriptografados:',len(rows))
     finally:db.close()

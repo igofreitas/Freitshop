@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login · FreitShop</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #0d0d12;
+            color: #e2e8f0;
+        }
+        .bg-dark-card {
+            background-color: #16161e;
+        }
+        .bg-dark-input {
+            background-color: #1f1f2e;
+        }
+        .border-dark {
+            border-color: #2e2e48;
+        }
+        [hidden] { display: none !important; }
+        .bf-choice { width:100%; text-align:left; padding:16px; border:1px solid #3b3154; border-radius:12px; background:#16161e; }
+        .bf-choice:hover, .bf-choice[aria-pressed="true"] { border-color:#a3e635; background:#20251a; }
+        .bf-choice:focus-visible { outline:3px solid #a3e635; outline-offset:3px; }
+        #bfChart svg { width:100%; height:auto; min-width:480px; }
+    </style>
+</head><body><header class="border-b border-purple-900/50"><nav class="max-w-4xl mx-auto p-5 flex flex-wrap gap-5"><a class="font-bold text-purple-300" href="/">FreitShop</a><a href="/#searchInput">Pesquisa</a><a href="/#blackFridayButton">Black Friday</a><a href="/#afiliados">Links de Afiliados</a></nav></header><main class="max-w-4xl mx-auto px-5 py-10"><h1 class="text-3xl font-bold mb-6">Login</h1><form id="adminLogin" class="mt-4 flex flex-wrap items-end gap-4">
+          <label>Usuário<input id="adminUsername" autocomplete="username" required class="block bg-dark-input rounded-xl p-3 mt-2"></label>
+          <label>Senha<input id="adminPassword" type="password" autocomplete="current-password" required class="block bg-dark-input rounded-xl p-3 mt-2"></label>
+          <button class="bg-purple-700 rounded-xl px-5 py-3">Entrar</button>
+        </form><p id="adminStatus" role="status" class="my-4 text-purple-200"></p></main><script src="/admin.js"></script></body></html>

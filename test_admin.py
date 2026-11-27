@@ -48,4 +48,4 @@ class AdminTests(unittest.TestCase):
         for path in ['/admin.py','/data/admin.sqlite3']:
             self.assertEqual(self.call(path)[0],404)
         with self.client.open(self.base+'/') as r:
-            page=r.read().decode();self.assertNotIn('storeFilter',page);self.assertNotIn('priceRange',page);self.assertIn('adminPanel',page)
+            page=r.read().decode();self.assertNotIn('storeFilter',page);self.assertNotIn('priceRange',page);self.assertNotIn('id="adminPanel"',page);self.assertNotIn('id="adminLogin"',page);self.assertIn('href="/login"',page)

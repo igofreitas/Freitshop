@@ -160,3 +160,28 @@ filterProducts();
 import('/feedback.js')
  .then(module=>module.initializeFeedback())
  .catch(()=>{const message=document.getElementById('feedbackStatus');if(message)message.textContent='Não foi possível carregar o formulário. Atualize a página.';});
+
+async function loadLinks(path,target,emptyText){
+ const list=$(target);
+ try{
+  const response=await fetch(path);
+  if(!response.ok)throw Error();
+  const {items}=await response.json();
+  if(!items.length){list.textContent=emptyText;return;}
+  for(const item of items){
+   const url=safeUrl(item.url);if(!url)continue;
+   const a=document.createElement('a');a.href=url;a.textContent=item.name;a.target='_blank';a.rel='sponsored noopener noreferrer';a.className='text-purple-300 underline';list.append(a);
+  }
+  if(target==='sponsorsList')$('sponsorsSection').hidden=false;
+ }catch{list.textContent='Não foi possível carregar os links.';}
+}
+loadLinks('/api/sponsors','sponsorsList','');
+loadLinks('/api/affiliates','affiliateList','Nenhum link de afiliado publicado.');
+function navigateSection(){
+ if(location.hash==='#blackFridayButton' && !blackFridayOpen)toggleBlackFriday();
+ if(location.hash==='#searchInput' && blackFridayOpen)toggleBlackFriday();
+}
+window.addEventListener('hashchange',navigateSection);
+document.querySelector('a[href="#searchInput"]').addEventListener('click',()=>{if(blackFridayOpen)toggleBlackFriday();});
+document.querySelector('a[href="#blackFridayButton"]').addEventListener('click',()=>{if(!blackFridayOpen)toggleBlackFriday();});
+navigateSection();

@@ -27,7 +27,7 @@ class ManagementTests(unittest.TestCase):
                 self.assertEqual(call('/api/admin/settings',cfg,csrf)[0],200)
                 with urlopen(fixture.base+'/') as page:
                     self.assertIn('Minha loja',page.read().decode())
-                self.assertEqual(call('/api/feedback',{'rating':4,'comment':'Avaliação'})[0],200)
+                self.assertEqual(call('/api/feedback',{'firstName':'Ana','lastName':'Silva','rating':4,'comment':'Avaliação'})[0],200)
                 status,backup=call('/api/admin/backup',{},csrf)
                 self.assertEqual(status,200)
                 self.assertEqual(backup['settings']['title'],'Minha loja')

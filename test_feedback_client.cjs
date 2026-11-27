@@ -6,10 +6,10 @@ const context=vm.createContext({document:{getElementById:get,createElement:make,
 vm.runInContext(fs.readFileSync(__dirname+'/feedback.js','utf8').replace('export function initializeFeedback','function initializeFeedback'),context);
 (async()=>{
  await vm.runInContext('initializeFeedback()',context);assert.equal(get('feedbackSave').disabled,false);
- get('feedbackComment').value='Comentário sem login';await get('feedbackForm').listeners.submit({preventDefault(){}});
+ get('firstName').value='Ana';get('lastName').value='Silva';get('feedbackComment').value='Comentário sem login';await get('feedbackForm').listeners.submit({preventDefault(){}});
  const posted=requests.find(r=>r.options.method==='POST');assert(posted);assert.equal(posted.options.headers.Authorization,undefined);assert.equal(JSON.parse(posted.options.body).rating,5);assert.equal(JSON.parse(posted.options.body).comment,'Comentário sem login');
  get('feedbackComment').value='🙂'.repeat(501);vm.runInContext('countCharacters()',context);assert(get('feedbackComment').validationMessage);
- vm.runInContext(`appendReviews([{rating:5,comment:'<script>alert(1)</script>',updatedAt:'2026-10-25'}])`,context);
- const last=get('feedbackList').children.at(-1);assert.equal(last.children[0].textContent,'Visitante');assert.equal(last.children[2].textContent,'<script>alert(1)</script>');
- console.log('PASS: anonymous form sends no token, ratings/character limit retained, comment rendered as text.');
+ vm.runInContext(`appendReviews([{author:'Ana Silva',rating:5,comment:'<script>alert(1)</script>',updatedAt:'2026-10-25'}])`,context);
+ const last=get('feedbackList').children.at(-1);assert.equal(last.children[0].textContent,'Ana Silva');assert.equal(last.children[2].textContent,'<script>alert(1)</script>');
+ console.log('PASS: named review form sends no token, ratings/character limit retained, comment rendered as text.');
 })().catch(e=>{console.error(e);process.exit(1)});

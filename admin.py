@@ -10,7 +10,7 @@ DEFAULT_SALT = '6e74192f33d6125f712db38118b7e73a'
 
 def connect():
     path=Path(os.environ.get('ADMIN_DB_PATH',str(Path(os.environ.get('FREITSHOP_DATA_DIR') or Path(__file__).resolve().parent/'data')/'admin.sqlite3')))
-    return storage.connect(path, """CREATE TABLE IF NOT EXISTS site_settings(name TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sponsors(id INTEGER PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,csrf TEXT NOT NULL,expires REAL NOT NULL); CREATE TABLE IF NOT EXISTS attempts(client TEXT PRIMARY KEY,count INTEGER NOT NULL,expires REAL NOT NULL)""")
+    return storage.connect(path, """CREATE TABLE IF NOT EXISTS site_settings(name TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS affiliates(id INTEGER PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sponsors(id INTEGER PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,csrf TEXT NOT NULL,expires REAL NOT NULL); CREATE TABLE IF NOT EXISTS attempts(client TEXT PRIMARY KEY,count INTEGER NOT NULL,expires REAL NOT NULL)""")
 
 def token_hash(token):return hashlib.sha256(token.encode()).hexdigest()
 
@@ -52,14 +52,16 @@ def login(data,client,old_cookie):
         return {'authenticated':True,'csrf':csrf},cookie(token)
     finally:db.close()
 
-def listing():
+def listing(affiliates=False):
+    table = 'affiliates' if affiliates else 'sponsors'
     db=connect()
-    try:return {'items':[{'id':row[0],'name':row[1],'url':row[2]} for row in db.execute('SELECT id,name,url FROM sponsors ORDER BY id')]}
+    try:return {'items':[{'id':row[0],'name':row[1],'url':row[2]} for row in db.execute(f'SELECT id,name,url FROM {table} ORDER BY id')]}
     finally:db.close()
 
 def mutate(path,data,current,csrf):
     if not current:raise FeedbackError(401,'Entre novamente para administrar.')
     if not hmac.compare_digest(csrf,current[1]):raise FeedbackError(403,'Sessão inválida. Entre novamente.')
+    table = 'affiliates' if path.startswith('/api/admin/affiliates') else 'sponsors'
     import site_management
     operations = {'/api/admin/settings':site_management.save, '/api/admin/comments/delete':site_management.remove_comment}
     if path in operations:
@@ -73,16 +75,16 @@ def mutate(path,data,current,csrf):
                 db.execute('DELETE FROM sessions WHERE token=?',(current[0],));return {'ok':True},cookie('',0)
             identity=data.get('id')
             if identity is not None and (type(identity) is not int or not 1<=identity<=9223372036854775807):raise FeedbackError(400,'Patrocinador inválido.')
-            if path=='/api/admin/sponsors/delete':
+            if path.endswith('/delete'):
                 if identity is None:raise FeedbackError(400,'Selecione um patrocinador.')
-                cursor=db.execute('DELETE FROM sponsors WHERE id=?',(identity,))
+                cursor=db.execute(f'DELETE FROM {table} WHERE id=?',(identity,))
             else:
                 name=data.get('name');url=data.get('url')
                 if not isinstance(name,str) or not 1<=len(name.strip())<=120 or not isinstance(url,str) or len(url)>2048:raise FeedbackError(400,'Informe nome (até 120 caracteres) e link válido.')
                 parsed=urlsplit(url)
                 if parsed.scheme not in ('http','https') or not parsed.hostname or parsed.username or parsed.password or any(ord(c)<=32 for c in url):raise FeedbackError(400,'Use um link HTTP ou HTTPS válido.')
-                if identity is None:cursor=db.execute('INSERT INTO sponsors(name,url) VALUES(?,?)',(name.strip(),url))
-                else:cursor=db.execute('UPDATE sponsors SET name=?,url=? WHERE id=?',(name.strip(),url,identity))
+                if identity is None:cursor=db.execute(f'INSERT INTO {table}(name,url) VALUES(?,?)',(name.strip(),url))
+                else:cursor=db.execute(f'UPDATE {table} SET name=?,url=? WHERE id=?',(name.strip(),url,identity))
             if not cursor.rowcount:raise FeedbackError(404,'Patrocinador não encontrado.')
         return {'ok':True},None
     finally:db.close()

@@ -65,5 +65,5 @@ def export_content():
         db.execute('BEGIN')
         offers = [dict(zip(('id','name','store','url'),row)) for row in db.execute('SELECT * FROM price_offers')]
         points = [dict(zip(('offerId','day','price','observedAt'),row)) for row in db.execute('SELECT * FROM price_observations')]
-    return {'format':1,'settings':settings(),'sponsors':admin.listing()['items'],'comments':comments,
+    return {'format':1,'settings':settings(),'affiliates':admin.listing(True)['items'],'sponsors':admin.listing()['items'],'comments':comments,
             'offers':offers,'observations':points,'visits':visitor_tracking.stats()}
