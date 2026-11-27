@@ -102,8 +102,8 @@
             </div>
 
             <div class="bg-dark-card p-5 rounded-2xl border border-purple-900/40">
-                <h1 class="text-xl font-bold text-purple-300">Encontre e compare ofertas online</h1>
-                <p class="text-sm text-gray-400 mt-2">Digite o modelo completo para resultados mais precisos. Confira capacidade, cor, estado e vendedor antes de comparar.</p>
+                <h1 class="text-xl font-bold text-purple-300"><!-- SITE_title --></h1>
+                <p class="text-sm text-gray-400 mt-2"><!-- SITE_intro --></p>
                 <p id="status" role="status" aria-live="polite" class="text-sm mt-3">Busque um produto para consultar ofertas.</p>
                 <p id="updated" class="text-xs text-gray-400 mt-2"></p>
                 <p class="text-xs text-gray-400 mt-2">Fonte: Google Shopping via SerpApi. Cobertura parcial das lojas. Preços anunciados, sujeitos a alteração; frete e condições de pagamento devem ser confirmados na oferta.</p>
@@ -219,6 +219,21 @@
             <button id="sponsorCancel" type="button" hidden class="underline">Cancelar edição</button>
           </form>
           <div id="sponsorManagement" class="space-y-3 mt-5"></div>
+          <form id="generalSettings" class="grid gap-3 mt-6">
+            <h3 class="font-bold">Página inicial</h3>
+            <label>Título<input name="title" maxlength="120" required class="block bg-dark-input rounded p-2 w-full"></label>
+            <label>Descrição<textarea name="intro" maxlength="500" required class="block bg-dark-input rounded p-2 w-full"></textarea></label>
+            <h3 class="font-bold">Google AdSense</h3>
+            <label>ID do editor<input name="client" placeholder="ca-pub-0000000000000000" class="block bg-dark-input p-2"></label>
+            <label>ID do bloco de anúncios<input name="slot" inputmode="numeric" class="block bg-dark-input p-2"></label>
+            <label>Link da política de privacidade<input name="privacyUrl" type="url" class="block bg-dark-input p-2 w-full"></label>
+            <label><input name="enabled" type="checkbox"> Exibir anúncios</label>
+            <button class="bg-purple-700 rounded-xl px-5 py-3">Salvar configurações</button>
+          </form>
+          <h3 class="font-bold mt-6">Moderação de comentários</h3>
+          <div id="moderationList"></div><button id="moreModeration" type="button" hidden>Carregar mais comentários</button>
+          <button id="downloadBackup" type="button" class="bg-purple-700 rounded-xl px-5 py-3 mt-6">Baixar backup de conteúdo</button>
+
         </div>
       </div>
     </section>

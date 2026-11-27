@@ -3,6 +3,7 @@ import json, os, time, math, threading, sqlite3, re, html
 import price_history
 import feedback
 import admin
+import site_management
 import visitor_tracking
 from postgres_counter import CounterStorageError
 from datetime import timedelta
@@ -21,13 +22,13 @@ def stats(increment=False, visitor_id=None, now=None):
     if increment and visitor_id is None: raise ValueError('Identificador obrigatório para registrar uma visita.')
     return visitor_tracking.stats(visitor_id if increment else None, now)
 
-def ad_config():
-    client = os.environ.get('ADSENSE_CLIENT', '').strip()
-    slot = os.environ.get('ADSENSE_SLOT', '').strip()
-    if not re.fullmatch(r'ca-pub-[0-9]{16}', client): client = ''
-    if not re.fullmatch(r'[0-9]+', slot): slot = ''
-    privacy = safe_url(os.environ.get('PRIVACY_URL', ''))
-    enabled = bool(client and slot and privacy and os.environ.get('ADSENSE_ENABLED') == 'true')
+def ad_config(cfg=None):
+    if cfg is None:
+        cfg = site_management.settings()
+    client = cfg['client'] if re.fullmatch(r'ca-pub-[0-9]{16}',cfg['client']) else ''
+    slot = cfg['slot'] if re.fullmatch(r'[0-9]+',cfg['slot']) else ''
+    privacy = safe_url(cfg['privacyUrl'])
+    enabled = bool(client and slot and privacy and cfg['enabled']=='true')
     return {'client':client, 'slot':slot, 'enabled':enabled, 'privacyUrl':privacy}
 
 def safe_url(value):
@@ -83,7 +84,8 @@ def search(query):
         except (sqlite3.Error, OSError):
             payload['historySaved'] = False
         if len(CACHE)>=100: CACHE.pop(next(iter(CACHE)))
-        CACHE[query.casefold()] = (time.monotonic(), payload)
+        if payload['historySaved']:
+            CACHE[query.casefold()] = (time.monotonic(), payload)
         return 200, payload
 
 class Handler(BaseHTTPRequestHandler):
@@ -118,7 +120,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path=urlsplit(self.path).path
-        if path in ('/api/admin/login','/api/admin/logout','/api/admin/sponsors','/api/admin/sponsors/delete'):
+        if path in ('/api/admin/login','/api/admin/logout','/api/admin/sponsors','/api/admin/sponsors/delete','/api/admin/settings','/api/admin/comments/delete','/api/admin/backup'):
             self.admin_operation(path);return
         if path == '/api/visit':
             try:
@@ -150,6 +152,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed=urlsplit(self.path)
+        if parsed.path=='/api/admin/settings':
+            def read_settings():
+                if not admin.session(self.headers.get('Cookie','')):
+                    raise feedback.FeedbackError(401,'Entre para administrar.')
+                return site_management.settings()
+            self.feedback_operation(read_settings);return
         if parsed.path=='/api/sponsors':
             self.feedback_operation(admin.listing);return
         if parsed.path=='/api/admin/session':
@@ -205,7 +213,13 @@ class Handler(BaseHTTPRequestHandler):
         filename, mime=files[parsed.path]
         content = (ROOT/filename).read_bytes()
         if filename == 'index.html':
-            client = ad_config()['client']
+            try:
+                editorial = site_management.settings()
+            except (sqlite3.Error,OSError):
+                editorial = site_management.DEFAULTS
+            for key in ('title','intro'):
+                content = content.replace(('<!-- SITE_'+key+' -->').encode(),html.escape(editorial[key]).encode())
+            client = ad_config(editorial)['client']
             tag = f'<meta name="google-adsense-account" content="{client}">' if client else ''
             content = content.replace(b'<!-- ADSENSE_ACCOUNT -->', tag.encode())
             try:
